@@ -16,12 +16,21 @@ PGraphics galvoPathCtx;
 Boolean frameDirty = true;
 ArrayList<Point> points;
 
+int plotWidth = 512;
+int plotHeight = 200;
+int plotMargin = 20;
 
-float avgBCDistRatio = 0;
-
+HistoryPlot fpsHistory;
+HistoryPlot pointsHistory;
+HistoryPlot ppsHistory;
+HistoryPlot distanceHistory;
+HistoryPlot bcRatioHistory;
+ArrayList<HistoryPlot> plots = new ArrayList();
 
 void setup() {
-  size(1200, 1200, P3D);
+  size(2220, 2074, P3D);
+  surface.setResizable(true);
+  surface.setLocation(0, 40);
   textSize(24);
   frameRate(480);
   projCtx = createGraphics(1200, 1200, P2D);
@@ -31,8 +40,19 @@ void setup() {
   oscProps.setListeningPort(12000);
   oscP5 = new OscP5(this, oscProps);
 
-  surface.setResizable(true);
   noLoop();
+
+  fpsHistory = new HistoryPlot("FPS", 512, 0.0, 240.0, 5, "int", "");
+  pointsHistory = new HistoryPlot("Points", 512, 0.0, 4096.0, 5, "int", "");
+  ppsHistory = new HistoryPlot("PPS", 512, 0.0, 360.0, 5, "int", "k");
+  distanceHistory = new HistoryPlot("Dist", 512, 0.0, 100.0, 5, "float", "k");
+  bcRatioHistory = new HistoryPlot("C/Dist", 512, 0.0, 1.0, 5, "float", "");
+
+  plots.add(fpsHistory);
+  plots.add(pointsHistory);
+  plots.add(ppsHistory);
+  plots.add(distanceHistory);
+  plots.add(bcRatioHistory);
 }
 
 
@@ -42,7 +62,7 @@ void draw() {
   }
   ArrayList<Point> lpoints = new ArrayList(points);
 
-  background(0);
+  background(8);
   camera();
 
   if (frameDirty) {
@@ -50,37 +70,43 @@ void draw() {
     renderGalvoPathImg(lpoints, galvoPathCtx);
     frameDirty = false;
   }
-  //blendMode(BLEND);
-  int imagedim = min(width, height);
-  image(projCtx, 0, 0, imagedim, imagedim);
 
+  int imagedim = min(width, height-pathGraphHeight);
+  image(projCtx, 20, 20, imagedim-40, imagedim-40);
   image(galvoPathCtx, 0, height-pathGraphHeight, width, pathGraphHeight);
 
+  float fps = frameRate;
+  fpsHistory.addValue(fps);
+
   int npoints = lpoints.size();
-  float fr = frameRate;
-  float kpps = npoints * fr / 1000;
+  pointsHistory.addValue(lpoints.size());
+
+  float kpps = npoints * fps / 1000;
+  ppsHistory.addValue(kpps);
 
   float[] pathinfo = getPathInfo(lpoints);
-  float totalDist = pathinfo[0] + pathinfo[1];
-  float dutyCycle = 0.0;
+  float totalDist = pathinfo[0]*2047 + pathinfo[1]*2047;
+  float bcRatio = 0.0;
   if (totalDist > 0.0) {
-    dutyCycle = pathinfo[1] / totalDist;
+    bcRatio = pathinfo[1]*2047 / totalDist;
   }
-  avgBCDistRatio = computeExpMovingAvg(dutyCycle, 50, avgBCDistRatio);
 
-  fill(255);
-  text("fps:      " + int(frameRate), 10, 36);
-  text("points: " + npoints, 10, 76);
-  text("kpps:   " + floor(kpps), 10, 116);
-  text("blank:   " + pathinfo[0], 10, 156);
-  text("color:   " + pathinfo[1], 10, 196);
-  text("duty:   " + avgBCDistRatio, 10, 236);
+  distanceHistory.addValue(totalDist/1000);
+  bcRatioHistory.addValue(bcRatio);
+
+  drawPlots(imagedim, 0, plotWidth, plotHeight, plotMargin);
+
 }
 
 
-float computeExpMovingAvg(float val, float window, float ema) {
-  float smooth = 2.0 / (window + 1); 
-  return (val - ema) * smooth + ema;
+void drawPlots(int x, int y, int plotWidth, int plotHeight, int plotMargin) {
+  int nplots = plots.size();
+  for (int i=0; i < nplots; i++) {
+    int xpos = x + plotMargin;
+    int ypos = y + plotMargin + i*plotHeight + i*plotMargin;
+    HistoryPlot p = plots.get(i);
+    p.draw(xpos, ypos, plotWidth, plotHeight);
+  }
 }
 
 
@@ -232,6 +258,12 @@ void renderProjectionImg(ArrayList ppoints, PGraphics g) {
     }
   }
   g.endShape();
+
+  // highlight first point in frame
+  Point p1 = (Point)ppoints.get(0);
+  g.stroke(0, 255, 0);
+  g.ellipse(p1.x*-s, p1.y*s, 25, 25);
+
   g.popMatrix();
   g.endDraw();
 }
