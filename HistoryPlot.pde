@@ -22,8 +22,6 @@ class HistoryPlot {
     this.units = units;
     this.expMovingAvg = 0.0;
     this.currentIndex = -1;
-
-
     println("HistoryPlot: ", this.name, this.historyLength);
   }
 
@@ -44,22 +42,31 @@ class HistoryPlot {
     boolean clipped;
     float xpos=0, ypos=0, ylen=0;
     int indicatorWidth = 50;
+    int valueOffset = 120;
     int w2 = w - indicatorWidth;
     stroke(255,255,255,64);
     strokeWeight(1);
     fill(0, 0, 0, 192);
     rect(x,y,w,h);
-    fill(255,255,255);
-    textSize(36);
 
+    fill(255,255,255,32);
+    rect(x+2,y+2, 100, 40);
+
+    fill(255,255,255);
+    textSize(32);
+
+    text(name, x+7, y+32);
+    textSize(50);
     if (this.numberFormat == "float") {
-      text(String.format("%s: %.2f%s", name, expMovingAvg, units), x+5, y+30);
+      text(String.format("%.2f %s", expMovingAvg, units), x+valueOffset, y+38);
+      //text(String.format("%s: %.2f %s", name, expMovingAvg, units), x+5, y+30);
     }
     else {
-      text(String.format("%s: %d%s", name, (int)expMovingAvg, units), x+5, y+30);
+      text(String.format("%d %s", (int)expMovingAvg, units), x+valueOffset, y+38);
+      //text(String.format("%s: %d %s", name, (int)expMovingAvg, units), x+5, y+30);
     }
 
-      noFill();
+    noFill();
     //stroke(255,255,255,240);
     float range = this.rangeMax - this.rangeMin;
 
@@ -124,25 +131,28 @@ class HistoryPlot {
     
     // needle
     strokeWeight(1);
-    stroke(255,255,255,192);
+    stroke(255,255,255,255);
     line(x+w - indicatorWidth*3/4, ypos, x+w, ypos);
+    
+    strokeWeight(3);
+    stroke(255,255,255,255);
+    line(x+w - indicatorWidth/2, ypos, x+w, ypos);
+    
+    strokeWeight(5);
+    stroke(255,255,255);
+    line(x+w-indicatorWidth/4, ypos, x+w, ypos);
+    //line(xpos-10, ypos, xpos, ypos);
 
-    // needlepoint
-    strokeWeight(2);
-    stroke(255,255,255,220);
-    point(x+w - indicatorWidth*3/4, ypos);
+    // // needlepoint
+    // strokeWeight(1);
+    // stroke(255,255,255,240);
+    // point(x+w - indicatorWidth*3/4, ypos);
 
     // indicator separator
     strokeWeight(1);
     stroke(255,255,255,192);
     line(x+w - indicatorWidth, y, x+w - indicatorWidth, y+h);
 
-    // indicator 
-    strokeWeight(4);
-    stroke(255,255,255);
-    line(x+w-indicatorWidth/6, ypos, x+w, ypos);
-    //line(xpos-10, ypos, xpos, ypos);
-    
   // graduations
     strokeWeight(1);
     stroke(255,255,255,160);
