@@ -10,15 +10,20 @@ OscProperties oscProps;
 Boolean showBlankLines = true;
 Boolean galvoPlotFitToWidth = false;
 
+int selectedPointIndex = -1;
+
 PGraphics projectionCtx;
 final Rect projectionCtxRect = new Rect(0, 0, 1024, 1024);
 Rect projScreenRect = new Rect(0, 0, 1024, 1024);
+Point projScreenCursor = new Point(0,0);
 
 int galvoPlotHeight = 768;
-
 PGraphics galvoPlotCtx;
 final Rect galvoPlotCtxRect = new Rect(0, 0, 4096, 512);
 Rect galvoPlotScreenRect = new Rect(0, 0, 1024, galvoPlotHeight);
+
+// the mouse cursor, in galvo plot image space
+float galvoPlotCursorX = 0.0;
 
 Boolean frameDirty = true;
 ArrayList<Point> points;
@@ -43,7 +48,6 @@ FrameAnalyzer analyzer;
 int padding = 20;
 
 void updateScreenRects() {
-
   // Projection
   int imagedim = min(width, height-galvoPlotHeight);
   projScreenRect.set(padding, padding, imagedim-2*padding, imagedim-2*padding);
@@ -112,11 +116,12 @@ void draw() {
     return;
   }
   ArrayList<Point> lpoints = new ArrayList(points);
-
+  int mx = mouseX, my = mouseY; 
   background(8);
   camera();
 
   updateScreenRects();
+  updateCursors(mx, my, lpoints);
 
   if (frameDirty) {
     renderProjectionImg(lpoints, projectionCtx);
@@ -145,6 +150,8 @@ void draw() {
         galvoPlotScreenRect.y,
         galvoPlotScreenRect.w,
         galvoPlotScreenRect.h);
+
+  checkMouse();
 
   // Update and draw history plots
   float fps = frameRate;
@@ -177,12 +184,67 @@ void draw() {
     plotRows = 4;
     plotCols = 2;  
   }
-  drawPlotsLayout(projScreenRect.w, 0, //plotMargin/2,
-                  width-projScreenRect.w, height-galvoPlotHeight-plotMargin*2,
+  drawPlotsLayout(projScreenRect.w+plotMargin*2, 0, //plotMargin/2,
+                  width-projScreenRect.w-plotMargin*2, height-galvoPlotHeight-plotMargin*2,
                   plotRows, plotCols);
   
   prevFrameFinalPoint = lpoints.get(npoints-1);
 }
+
+int findClosestPointIndex(float px, float py, ArrayList points) {
+  int npoints = points.size();
+  float minDist = 999999.0;
+  int minIndex = -1;
+  Point target = new Point(px, py);
+
+  for(int i=0; i< npoints; i++) {
+    Point p = (Point)points.get(i);
+    float d = target.distSqr(p);
+    if (d < minDist) {
+      minDist = d;
+      minIndex = i;
+    }
+  }
+  return minIndex;
+}
+
+void updateCursors(int mx, int my, ArrayList points) {
+  // Update galvo plot cursor
+  if (galvoPlotScreenRect.containPoint(mx, my)) {
+    galvoPlotCursorX = (float)(mx - galvoPlotScreenRect.x)
+                       / galvoPlotScreenRect.w
+                       * pointsHistory.expMovingAvg;
+    
+    selectedPointIndex = (int)galvoPlotCursorX-1;
+  }
+  else {
+    selectedPointIndex = -1;
+  }
+  // Update projection cursor
+  if(projScreenRect.containPoint(mx, my)) {
+    float projCursorX = (float)(mx - projScreenRect.x)
+                        / projScreenRect.w
+                        * projectionCtxRect.w
+                        - projectionCtxRect.w/2;
+    float projCursorY = (float)(my - projScreenRect.y)
+                        / projScreenRect.h
+                        * projectionCtxRect.h
+                        - projectionCtxRect.h/2;
+
+    projScreenCursor.x = projCursorX; 
+    projScreenCursor.y = projCursorY; 
+
+    float s = projectionCtxRect.w / 2;
+    int closestIndex = findClosestPointIndex(projCursorX / s * -1.0,
+                                             projCursorY / s,
+                                             points);
+    if (closestIndex > -1) {
+      selectedPointIndex = closestIndex;
+    }
+
+  }
+}
+
 
 void drawPlotsLayout(int x, int y, int layoutWidth, int layoutHight, int rows, int cols)  {
   int pwidth = (layoutWidth - plotMargin*1*cols) / cols;
@@ -250,6 +312,36 @@ float[] getPathStats(ArrayList<Point> points) {
     dists[2] = maxDist;
     return dists;
 }
+
+void checkMouse() {
+  int mx = mouseX, my = mouseY;
+  if (galvoPlotScreenRect.containPoint(mx, my)) {
+    stroke(0, 255, 0);
+    strokeWeight(1);
+    noFill();
+    rect(galvoPlotScreenRect.x, galvoPlotScreenRect.y,
+         galvoPlotScreenRect.w, galvoPlotScreenRect.h);
+
+  }
+
+
+  if (selectedPointIndex >= 0) {
+    fill(255);
+    textSize(24);
+    int cx = (int)(((float)selectedPointIndex / pointsHistory.expMovingAvg) * galvoPlotScreenRect.w);
+    text(selectedPointIndex, cx, galvoPlotScreenRect.y+galvoPlotScreenRect.h-4);
+  }
+
+
+  if (projScreenRect.containPoint(mx, my)) {
+    stroke(0, 255, 0);
+    strokeWeight(1);
+    noFill();
+    rect(projScreenRect.x, projScreenRect.y,
+         projScreenRect.w, projScreenRect.h);
+  }
+}
+
 
 void mouseClicked() {
   if (mouseY > height - galvoPlotHeight) {
@@ -366,6 +458,20 @@ void renderGalvoPathImg(ArrayList ppoints, PGraphics g) {
   }
   g.endShape();
   
+  // Highlight the selected point
+  if (selectedPointIndex >= 0 && selectedPointIndex < npoints-1) {
+    int cx = (int)(((float)selectedPointIndex / npoints) * w);
+    Point p1 = (Point)ppoints.get(selectedPointIndex);
+    g.stroke(192);
+    g.strokeWeight(2);
+    g.line(cx, vmargin+2, cx, galvoPlotCtxRect.h-vmargin-2);
+    //g.line(p1.x*-s, p1.y*s, p2.x*-s, p2.y*s );
+    //g.ellipse(p1.x*-s, p1.y*s, 25, 25);
+
+    // g.fill(255);
+    // g.textSize(36);
+    // g.text(selectedPointIndex, cx, g.height-vmargin+2);
+  }
   g.endDraw();
 }
 
@@ -446,10 +552,35 @@ void renderProjectionImg(ArrayList ppoints, PGraphics g) {
   }
   g.endShape();
 
+  // Highlight the selected point
+  if (selectedPointIndex >= 0 && selectedPointIndex < npoints-1) {
+    Point p1 = (Point)ppoints.get(selectedPointIndex);
+    //Point p2 = (Point)ppoints.get(selectedPointIndex+1);
+    if (p1.isBlank()) {
+      g.stroke(255,255,255,240);
+      g.fill(0,0,0, 192);
+    }
+    else {
+      g.stroke(255,255,255,240);
+      g.fill(p1.r, p1.b, p1.b, 192);
+    }
+    g.strokeWeight(2);
+    //g.line(p1.x*-s, p1.y*s, p2.x*-s, p2.y*s );
+    g.ellipse(p1.x*-s, p1.y*s, 25, 25);
+  }
+
+  // draw cursor
+  // g.stroke(255);
+  // g.strokeWeight(4);
+  // //g.line(p1.x*-s, p1.y*s, p2.x*-s, p2.y*s );
+  // g.ellipse(projScreenCursor.x, projScreenCursor.y, 25, 25);
+  
+
   // highlight first point in frame
   Point p1 = (Point)ppoints.get(0);
   g.stroke(0, 255, 0);
-  g.ellipse(p1.x*-s, p1.y*s, 25, 25);
+  g.fill(0, 255,0);
+  g.ellipse(p1.x*-s, p1.y*s, 10, 10);
 
   g.popMatrix();
   g.endDraw();
@@ -571,6 +702,10 @@ class Point {
       Point d = this.sub(other);
       return (float)Math.sqrt(d.x*d.x + d.y*d.y);
   }
+  public float distSqr(Point other) {
+      Point d = this.sub(other);
+      return (float)d.x*d.x + d.y*d.y;
+  }
   public Point sub(Point other) {
       return new Point(this.x-other.x, this.y-other.y);
   }  
@@ -604,6 +739,10 @@ class Rect {
     this.y = _y;
     this.w = _w;
     this.h = _h;
+  }
+
+  public Boolean containPoint(float px, float py) {
+    return !((px<x) || (px>x+w) || (py<y) || (py>y+h));
   }
 }
 
