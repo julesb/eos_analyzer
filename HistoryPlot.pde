@@ -58,12 +58,10 @@ class HistoryPlot {
     text(name, x+7, y+32);
     textSize(50);
     if (this.numberFormat == "float") {
-      text(String.format("%.2f %s", expMovingAvg, units), x+valueOffset, y+38);
-      //text(String.format("%s: %.2f %s", name, expMovingAvg, units), x+5, y+30);
+      text(String.format("%.2f %s", expMovingAvg, units), x+valueOffset, y+39);
     }
     else {
-      text(String.format("%d %s", (int)expMovingAvg, units), x+valueOffset, y+38);
-      //text(String.format("%s: %d %s", name, (int)expMovingAvg, units), x+5, y+30);
+      text(String.format("%d %s", (int)expMovingAvg, units), x+valueOffset, y+39);
     }
 
     noFill();
@@ -102,14 +100,13 @@ class HistoryPlot {
     strokeWeight(1.5);
     for (int i = 0; i < w2; i++) {
       int hidx = (int)(currentIndex + (float)i / w2 * historyLength) % historyLength;
+      if (hidx < 0) continue;
       xpos = x + i;
       float val = values[hidx];
       clipped = (val < rangeMin || val > rangeMax); 
       float clippedVal = min(max(rangeMin, val), rangeMax);
       ylen = clippedVal / range * (h -2);
-      
       ypos = y + h - ylen - 1;
-
       if (clipped) {
         stroke(255,0,0);
       }

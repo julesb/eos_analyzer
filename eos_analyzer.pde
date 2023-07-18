@@ -8,18 +8,16 @@ OscP5 oscP5;
 OscProperties oscProps;
 
 Boolean showBlankLines = true;
-int pathGraphHeight = 512;
+int galvoPlotHeight = 512;
 Boolean galvoPlotFitToWidth = false;
 
 float intensity = 1.0;
 PGraphics projCtx;
-PGraphics galvoPathCtx;
+PGraphics galvoPlotCtx;
 Boolean frameDirty = true;
 ArrayList<Point> points;
 Point prevFrameFinalPoint;
 
-//int plotWidth = 512;
-//int plotHeight = 216;
 int plotMargin = 20;
 int historyLength = 512;
 
@@ -34,6 +32,8 @@ HistoryPlot bitrateHistory;
 HistoryPlot smoothPoints;
 ArrayList<HistoryPlot> plots = new ArrayList();
 
+FrameAnalyzer analyzer;
+
 void setup() {
   size(2220, 2074, P3D);
   surface.setResizable(true);
@@ -41,8 +41,8 @@ void setup() {
   textSize(24);
   frameRate(480);
   projCtx = createGraphics(1024, 1024, P2D);
-  galvoPathCtx = createGraphics(width/2, pathGraphHeight, P2D);
-  //galvoPathCtx = createGraphics(width/2, pathGraphHeight/2, P2D);
+  galvoPlotCtx = createGraphics(4096, galvoPlotHeight, P2D);
+  //galvoPlotCtx = createGraphics(width/2, galvoPlotHeight, P2D);
   oscProps = new OscProperties();
   oscProps.setDatagramSize(65535);
   oscProps.setListeningPort(12000);
@@ -50,11 +50,13 @@ void setup() {
 
   noLoop();
 
+  analyzer = new FrameAnalyzer();
+
   fpsHistory     = new HistoryPlot("FPS",      historyLength, 0.0, 240.0,  5, "int", "");
   pointsHistory  = new HistoryPlot("Points",   historyLength, 0.0, 4096.0, 1, "int", "");
   ppsHistory     = new HistoryPlot("PPS",      historyLength, 0.0, 360.0,  5, "int", "k");
-  pathsHistory   = new HistoryPlot("Paths",    historyLength, 0.0, 50.0,  1, "int", "");
-  distHistory    = new HistoryPlot("Dist",     historyLength, 0.0, 120.0,  5, "float", "k");
+  pathsHistory   = new HistoryPlot("Paths",    historyLength, 0.0, 100.0,  1, "int", "");
+  distHistory    = new HistoryPlot("Dsum",     historyLength, 0.0, 120.0,  5, "float", "k");
   maxdistHistory = new HistoryPlot("Dmax",     historyLength, 0.0, 5800.0, 1, "int", "");
   bcRatioHistory = new HistoryPlot("C/D",      historyLength, 0.0, 1.0,    5, "float", "");
   bitrateHistory = new HistoryPlot("Net",      historyLength, 0.0, 10.0, 5, "float", "Mbps");
@@ -84,24 +86,24 @@ void draw() {
 
   if (frameDirty) {
     renderProjectionImg(lpoints, projCtx);
-    renderGalvoPathImg(lpoints, galvoPathCtx);
+    renderGalvoPathImg(lpoints, galvoPlotCtx);
     frameDirty = false;
   }
 
-  int imagedim = min(width, height-pathGraphHeight);
+  int imagedim = min(width, height-galvoPlotHeight);
   image(projCtx, 20, 20, imagedim-40, imagedim-40);
   
   noStroke();
   fill(0);
   int galvoPlotWidth = width; //width-plotWidth-plotMargin*2;
-  rect(0, height - pathGraphHeight, galvoPlotWidth, pathGraphHeight);
+  rect(0, height - galvoPlotHeight, galvoPlotWidth, galvoPlotHeight);
   if (galvoPlotFitToWidth) {
-    image(galvoPathCtx, 0, height-pathGraphHeight, width, pathGraphHeight);
+    image(galvoPlotCtx, 0, height-galvoPlotHeight, width, galvoPlotHeight);
   }
   else {
-    image(galvoPathCtx, 0, height-pathGraphHeight,
-        min((int)((float)smoothPoints.expMovingAvg/4096.0*galvoPlotWidth*2), galvoPlotWidth),
-        pathGraphHeight);
+    image(galvoPlotCtx, 0, height-galvoPlotHeight,
+        min((int)((float)smoothPoints.expMovingAvg/4096.0*galvoPlotWidth*1), galvoPlotWidth),
+        galvoPlotHeight);
   }
   float fps = frameRate;
   fpsHistory.addValue(fps);
@@ -128,7 +130,7 @@ void draw() {
   
   // float bitrate = pps * (7 * 8) / (1024*1024);  
   // bitrateHistory.addValue(bitrate);
-  //plotHeight = (height - pathGraphHeight) / (1+plots.size()); // - plotMargin*7;
+  //plotHeight = (height - galvoPlotHeight) / (1+plots.size()); // - plotMargin*7;
   //drawPlots(width-plotWidth-plotMargin, 0, plotWidth, plotHeight, plotMargin);
 
   int plotRows, plotCols;
@@ -141,7 +143,7 @@ void draw() {
     plotCols = 2;  
   }
   drawPlotsLayout(imagedim, 0, //plotMargin/2,
-                  width-imagedim, height-pathGraphHeight-plotMargin*2,
+                  width-imagedim, height-galvoPlotHeight-plotMargin*2,
                   plotRows, plotCols);
   
   prevFrameFinalPoint = lpoints.get(npoints-1);
@@ -214,63 +216,63 @@ float[] getPathStats(ArrayList<Point> points) {
     return dists;
 }
 
-void addPathInfo(ArrayList<Point> lpoints) {
-  int npoints = lpoints.size();
-  int npaths = 0;
-  Point pPrev, p, pNext;
-  for(int i=0; i < npoints; i++) {
-    PointInfo info = new PointInfo();
-    pPrev = (i > 0)?         lpoints.get(i-1) : null;
-    pNext = (i < npoints-1)? lpoints.get(i+1) : null;
-    p = lpoints.get(i);
-
-    info.isBlank = p.isBlank();
-
-    // frameStart
-    if (i == 0) {
-      info.frameStart = true;
-    }
-    if (p.isBlank()) {
-      // blank dwell
-      if (pPrev != null && !p.identical(pPrev)
-          && pNext != null && p.identical(pNext)) {
-        info.blankDwell = true;
-      }
-
-      // travel
-      if (pPrev != null && !p.posEqual(pPrev)) {
-        info.travelStart = true;
-      }
-    }
-    else {
-      // dwell start
-      if (pPrev != null && p.identical(pPrev)
-       && pNext != null && pNext.identical(p)) {
-        info.dwell = true;
-      }
-      // path begin
-      if (pPrev != null && pPrev.isBlank()) {
-        info.pathBegin = true;
-        npaths++;
-      }
-      // path end
-      if (pNext != null && pNext.isBlank()) {
-        info.pathEnd = true;
-      }
-
-    }
-    // frame end
-    if (i == npoints-1) {
-      info.frameEnd = true;
-    }
-    p.info = info;
-    //println(info.toString());
-  }
-  pathsHistory.addValue(npaths);
-}
+// void addPathInfo(ArrayList<Point> lpoints) {
+//   int npoints = lpoints.size();
+//   int npaths = 0;
+//   Point pPrev, p, pNext;
+//   for(int i=0; i < npoints; i++) {
+//     PointInfo info = new PointInfo();
+//     pPrev = (i > 0)?         lpoints.get(i-1) : null;
+//     pNext = (i < npoints-1)? lpoints.get(i+1) : null;
+//     p = lpoints.get(i);
+//
+//     info.isBlank = p.isBlank();
+//
+//     // frameStart
+//     if (i == 0) {
+//       info.frameStart = true;
+//     }
+//     if (p.isBlank()) {
+//       // blank dwell
+//       if (pPrev != null && !p.identical(pPrev)
+//           && pNext != null && p.identical(pNext)) {
+//         info.blankDwell = true;
+//       }
+//
+//       // travel
+//       if (pPrev != null && !p.posEqual(pPrev)) {
+//         info.travelStart = true;
+//       }
+//     }
+//     else {
+//       // dwell start
+//       if (pPrev != null && p.identical(pPrev)
+//        && pNext != null && pNext.identical(p)) {
+//         info.dwell = true;
+//       }
+//       // path begin
+//       if (pPrev != null && pPrev.isBlank()) {
+//         info.pathBegin = true;
+//         npaths++;
+//       }
+//       // path end
+//       if (pNext != null && pNext.isBlank()) {
+//         info.pathEnd = true;
+//       }
+//
+//     }
+//     // frame end
+//     if (i == npoints-1) {
+//       info.frameEnd = true;
+//     }
+//     p.info = info;
+//     //println(info.toString());
+//   }
+//   pathsHistory.addValue(npaths);
+// }
 
 void mouseClicked() {
-  if (mouseY > height - pathGraphHeight) {
+  if (mouseY > height - galvoPlotHeight) {
     galvoPlotFitToWidth = !galvoPlotFitToWidth;
   }
 }
@@ -287,86 +289,60 @@ void renderGalvoPathImg(ArrayList ppoints, PGraphics g) {
   g.stroke(255, 255, 255, 32);
   g.strokeWeight(1);
   g.noFill();
-  //g.rect(0, 0, g.width-1, g.height-1);
   g.rect(0, vmargin, g.width-1, g.height/2 - vmargin);
   g.rect(0, g.height/2+vmargin, g.width-1, g.height/2 - vmargin*2);
-
   g.line(0, g.height/2, g.width, g.height/2);
 
-  // Info markers
-  addPathInfo(ppoints);
-  g.beginShape(LINES);
-  g.strokeWeight(1);
-  for (int i = 0; i < npoints; i++) {
-    // int pidx = (int)((i / w) * npoints);    
-    Point p = (Point)ppoints.get(i);
-    float x = (float)i / npoints * w;
-    float x2 = (float)(i+1) / npoints * w;
-    if(p.info != null) {  
-      if (!p.info.isBlank) {
-        g.stroke(255, 255, 255, 32);
-        g.vertex(x, g.height-vmargin+3);
-        g.vertex(x, g.height-2);
-      }
-     
-      if (p.info.dwell) {
-        g.stroke(p.r, p.g, p.b, 160);
-        g.vertex(x, 2);
-        g.vertex(x, vmargin/2-1);
-        // g.vertex(x, vmargin/2+1);
-        // g.vertex(x, vmargin-2);
-        continue;
-      }
-      if (p.info.pathBegin) {
-        //g.stroke(255, 16, 16, 96);
-        //g.stroke(255, 162, 162, 64);
-        g.stroke(255, 255, 255, 32);
-        //g.stroke(64, 64, 255, 128);
-        g.vertex(x, vmargin+1);
-        g.vertex(x, g.height);
-        continue;
-      }
-      if (p.info.pathEnd) {
-        //g.stroke(255, 16, 16, 96);
-        //g.stroke(255, 162, 162, 64);
-        g.stroke(255, 255, 255, 32);
-        //g.stroke(64, 64, 255, 128);
-        g.vertex(x, vmargin+1);
-        g.vertex(x, g.height);
-        continue;
-      }
-      if (!p.info.dwell && !p.info.isBlank) {
-        g.stroke(p.r, p.g, p.b, 64);
-        //g.vertex(x, 0);
-        //g.vertex(x, vmargin-1);
-        g.vertex(x, vmargin/2+4);
-        g.vertex(x, vmargin/2+5);
-        // g.vertex(x, vmargin/2+1);
-        // g.vertex(x, vmargin-3);
-        continue;
-      }
-      // if (p.info.travelStart) {
-      //   g.stroke(255, 64, 64, 64);
-      //   g.vertex(x, 0);
-      //   g.vertex(x, vmargin-1);
-      // }
-      if (p.info.isBlank) {
-        // g.stroke(255, 255, 255, 16);
-        // //g.stroke(255, 16, 16, 240);
-        // g.vertex(x, g.height-vmargin+3);
-        // g.vertex(x, g.height-2);
-        
-        g.stroke(255, 255, 255, 64);
-        g.vertex(x, vmargin/2+4);
-        g.vertex(x, vmargin/2+5);
-        continue;
-      }
+  // Regions
+  ArrayList<Region> regions = analyzer.getRegions(ppoints);
+  int nregions = regions.size();
+  int npaths = 0;
+  for (int ridx=0; ridx < nregions; ridx++) {
+    Region region = regions.get(ridx);
+    float x1 = (float)region.startIndex / npoints * w;
+    float x2 = (float)region.endIndex / npoints * w;
+    float xw = x2 - x1;
+    switch(region.type) {
+      case Region.BLANK:
+        g.noStroke();
+        g.fill(255,0,0,192);
+        g.rect(x1, g.height-6, xw, 3);
+        break;
+      case Region.PATH:
+        npaths++;
+        g.strokeWeight(1);
+        g.stroke(255,255,255,32);
+        g.fill(255,255,255,8);
+        g.rect(x1, vmargin+2, xw, g.height/2-vmargin-4);
+        g.rect(x1, g.height/2+vmargin+2, xw, g.height/2-vmargin-4);
 
+        g.stroke(0, 0, 0);
+        for (int pidx=region.startIndex; pidx <= region.endIndex; pidx++) {
+          Point p1 = (Point)ppoints.get(pidx);
+          g.fill(p1.r, p1.g, p1.b, 96);
+          g.rect((float)pidx/npoints * w+1, vmargin/2+4, xw/region.pointCount, vmargin/2-6);
+        }
+        break;
+      case Region.DWELL:
+        int dheight;
+        if (((Point)ppoints.get(region.startIndex)).isBlank()) {
+          g.stroke(255,255,255,96);
+          g.strokeWeight(1);
+          dheight = vmargin/2-3;
+        }
+        else {
+          g.noStroke();
+          dheight = vmargin/2-2;
+        }
+        g.fill(region.col[0],region.col[1],region.col[2],192);
+        g.rect(x1+1, 2, xw-1, dheight);
+        break;
     }
   }
-  g.endShape();
+  pathsHistory.addValue(npaths);
+  g.noFill();
 
-
+  // X galvo plot
   g.beginShape();
   for (int i = 0; i < w; i++) {
     int pidx = (int)((i / w) * npoints);    
@@ -387,6 +363,7 @@ void renderGalvoPathImg(ArrayList ppoints, PGraphics g) {
   }
   g.endShape();
   
+  // Y galvo plot
   g.beginShape();
   for (int i = 0; i < w; i++) {
     int pidx = (int)((i / w) * npoints);    
@@ -471,7 +448,6 @@ void renderProjectionImg(ArrayList ppoints, PGraphics g) {
         continue;
       }
     } else {
-      //println("color", p1.r, p1.g, p1.b);
       g.strokeWeight(4);
       g.stroke(p1.r, p1.g, p1.b, 160);
     }
