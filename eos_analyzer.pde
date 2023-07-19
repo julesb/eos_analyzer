@@ -6,6 +6,13 @@ import java.util.zip.DataFormatException;
 
 OscP5 oscP5;
 OscProperties oscProps;
+Boolean oscEnabled = true;
+
+int targetFrameRate = 480;
+Boolean updateFrameRate = false;
+
+// dont modify this directly, use setSnapshotMode()
+Boolean snapshotModeEnabled = false;
 
 Boolean showBlankLines = true;
 Boolean galvoPlotFitToWidth = false;
@@ -114,6 +121,12 @@ void draw() {
   if (points == null || points.size() == 0) {
     return;
   }
+
+  if (updateFrameRate) {
+    frameRate(targetFrameRate);
+    updateFrameRate = false;
+  }
+
   ArrayList<Point> lpoints = new ArrayList(points);
   int mx = mouseX, my = mouseY; 
   background(8);
@@ -122,7 +135,7 @@ void draw() {
   updateScreenRects();
   updateCursors(mx, my, lpoints);
 
-  if (frameDirty) {
+  if (frameDirty || snapshotModeEnabled) {
     renderProjectionImg(lpoints, projectionCtx);
     renderGalvoPathImg(lpoints, galvoPlotCtx);
     frameDirty = false;
@@ -173,6 +186,10 @@ void draw() {
   distHistory.addValue(totalDist/1000);
   maxdistHistory.addValue(maxDist);
   bcRatioHistory.addValue(bcRatio);
+
+  if (snapshotModeEnabled) {
+    bitrateHistory.addValue(0);
+  }
 
   int plotRows, plotCols;
   if (width-projScreenRect.w < width/2) {
@@ -362,8 +379,8 @@ void renderGalvoPathImg(ArrayList ppoints, PGraphics g) {
   g.stroke(255, 255, 255, 32);
   g.strokeWeight(1);
   g.noFill();
-  g.rect(0, vmargin, g.width-1, g.height/2 - vmargin);
-  g.rect(0, g.height/2+vmargin, g.width-1, g.height/2 - vmargin*2);
+  //g.rect(0, vmargin, g.width-1, g.height/2 - vmargin);
+  //g.rect(0, g.height/2+vmargin, g.width-1, g.height/2 - vmargin*2);
   //g.line(0, g.height/2, g.width, g.height/2);
 
   // Regions
@@ -390,7 +407,7 @@ void renderGalvoPathImg(ArrayList ppoints, PGraphics g) {
         g.stroke(255,255,255,32);
         g.fill(255,255,255,8);
         g.rect(x1, vmargin+2, xw, g.height/2-vmargin-4);
-        g.rect(x1, g.height/2+vmargin+2, xw, g.height/2-vmargin-4);
+        g.rect(x1, g.height/2+vmargin+2, xw, g.height/2-vmargin*2);
 
         g.stroke(0, 0, 0);
         for (int pidx=region.startIndex; pidx <= region.endIndex; pidx++) {
@@ -587,9 +604,37 @@ void renderProjectionImg(ArrayList ppoints, PGraphics g) {
   g.endDraw();
 }
 
+void setSnapshotMode(Boolean enabled) {
+  if (enabled) {
+    snapshotModeEnabled = true;
+    oscEnabled = false;
+    targetFrameRate = 60;
+    updateFrameRate = true;
+    loop();
+  }
+  else {
+    snapshotModeEnabled = false;
+    targetFrameRate = 480;
+    updateFrameRate = true;
+    noLoop();
+    oscEnabled = true;
+  }
+}
+
+void keyTyped() {
+  println("KEY:", key);
+  switch(key) {
+    case ' ':
+      setSnapshotMode(!snapshotModeEnabled);
+      break;
+  }
+}
 
 
 void oscEvent(OscMessage message) {
+  if (!oscEnabled) {
+    return;
+  }
   ArrayList<Point> pointList = new ArrayList();
   if (message.checkAddrPattern("/f")) {
     byte[] packedData = message.get(0).bytesValue();
