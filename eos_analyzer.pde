@@ -72,7 +72,6 @@ void setup() {
   surface.setLocation(0, 40);
   textSize(24);
   frameRate(480);
-  
   updateScreenRects();
 
   projectionCtx = createGraphics(projectionCtxRect.w, projectionCtxRect.h, P2D);
@@ -215,7 +214,7 @@ void updateCursors(int mx, int my, ArrayList points) {
                        / galvoPlotScreenRect.w
                        * pointsHistory.expMovingAvg;
     
-    selectedPointIndex = (int)galvoPlotCursorX-1;
+    selectedPointIndex = (int)galvoPlotCursorX-0;
   }
   else {
     selectedPointIndex = -1;
@@ -315,31 +314,33 @@ float[] getPathStats(ArrayList<Point> points) {
 
 void checkMouse() {
   int mx = mouseX, my = mouseY;
-  if (galvoPlotScreenRect.containPoint(mx, my)) {
-    stroke(0, 255, 0);
-    strokeWeight(1);
-    noFill();
-    rect(galvoPlotScreenRect.x, galvoPlotScreenRect.y,
-         galvoPlotScreenRect.w, galvoPlotScreenRect.h);
 
-  }
+  // if (galvoPlotScreenRect.containPoint(mx, my)) {
+  //   stroke(0, 255, 0);
+  //   strokeWeight(1);
+  //   noFill();
+  //   rect(galvoPlotScreenRect.x, galvoPlotScreenRect.y,
+  //        galvoPlotScreenRect.w, galvoPlotScreenRect.h);
+  // }
 
 
   if (selectedPointIndex >= 0) {
     fill(255);
     textSize(24);
-    int cx = (int)(((float)selectedPointIndex / pointsHistory.expMovingAvg) * galvoPlotScreenRect.w);
-    text(selectedPointIndex, cx, galvoPlotScreenRect.y+galvoPlotScreenRect.h-4);
+    // int cx = (int)(((float)selectedPointIndex / pointsHistory.expMovingAvg)
+    int cx = (int)(((float)selectedPointIndex / smoothPoints.expMovingAvg)
+             * galvoPlotScreenRect.w);
+    text(selectedPointIndex, cx, galvoPlotScreenRect.y+galvoPlotScreenRect.h-8);
   }
 
 
-  if (projScreenRect.containPoint(mx, my)) {
-    stroke(0, 255, 0);
-    strokeWeight(1);
-    noFill();
-    rect(projScreenRect.x, projScreenRect.y,
-         projScreenRect.w, projScreenRect.h);
-  }
+  // if (projScreenRect.containPoint(mx, my)) {
+  //   stroke(0, 255, 0);
+  //   strokeWeight(1);
+  //   noFill();
+  //   rect(projScreenRect.x, projScreenRect.y,
+  //        projScreenRect.w, projScreenRect.h);
+  // }
 }
 
 
