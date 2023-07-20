@@ -16,6 +16,7 @@ Boolean snapshotModeEnabled = false;
 
 Boolean showBlankLines = true;
 
+Point selectedPoint;
 int selectedPointIndex = -1;
 
 PGraphics projectionCtx;
@@ -223,14 +224,18 @@ int findClosestPointIndex(float px, float py, ArrayList points) {
   return minIndex;
 }
 
-void updateCursors(int mx, int my, ArrayList points) {
+
+void updateCursors(int mx, int my, ArrayList<Point> points) {
   // Update galvo plot cursor
   if (galvoPlotScreenRect.containPoint(mx, my)) {
     galvoPlotCursorX = (float)(mx - galvoPlotScreenRect.x)
                        / galvoPlotScreenRect.w
                        * pointsHistory.expMovingAvg;
-    
-    selectedPointIndex = (int)galvoPlotCursorX-0;
+
+    selectedPointIndex = (int)galvoPlotCursorX;
+    if (selectedPointIndex < points.size()) {
+      selectedPoint = points.get(selectedPointIndex); 
+    }
   }
   else {
     selectedPointIndex = -1;
@@ -255,8 +260,8 @@ void updateCursors(int mx, int my, ArrayList points) {
                                              points);
     if (closestIndex > -1) {
       selectedPointIndex = closestIndex;
+      selectedPoint = points.get(selectedPointIndex);
     }
-
   }
 }
 
@@ -494,36 +499,6 @@ void renderGalvoPathImg(ArrayList ppoints, PGraphics g) {
 }
 
 
-void renderGalvoPathCombinedImg(ArrayList ppoints, PGraphics g) {
-  int npoints = ppoints.size();
-  float w = g.width;
-  g.beginDraw();
-  g.background(0);
-  g.blendMode(ADD);
-  g.noFill();
-  g.stroke(255, 255, 255, 64);
-  g.strokeWeight(1);
-  
-  g.rect(0, 0, g.width-1, g.height-1);
-  g.strokeWeight(2);
-  
-  g.beginShape(POINTS);
-  for (int i = 0; i < w; i++) {
-    int pidx = (int)((i / w) * npoints);    
-    Point p = (Point)ppoints.get(pidx);
-    float xpos = 0.5 * (p.x + 1) * g.height;
-    float ypos = 0.5 * (p.y + 1) * g.height;
-    
-    g.stroke(10, 255, 10);
-    g.vertex(i, xpos);
-    g.stroke(255, 255, 10);
-    g.vertex(i, ypos);
-  }
-  g.endShape();
-  g.endDraw();
-}
-
-
 void renderProjectionImg(ArrayList ppoints, PGraphics g) {
   int npoints = ppoints.size();
   float s = g.width / 2.0;
@@ -676,35 +651,6 @@ void oscEvent(OscMessage message) {
   }
 }
 
-
-//void oscEventUncompressed(OscMessage message) {
-//  ArrayList<Point> pointList = new ArrayList();
-//  if (message.checkAddrPattern("/f")) {
-//    byte[] packedData = message.get(0).bytesValue();
-
-//    // [uint16 uint16 uint8 uint8 uint8 ]  = 7 bytes
-//    int numPoints = packedData.length / 7; 
-//    pointList.clear();
-
-//    for (int i = 0; i < numPoints; i++) {
-//      int offset = i * 7;
-//      int x = unpackUInt16(packedData, offset);
-//      int y = unpackUInt16(packedData, offset + 2);
-//      int r = unpackUInt8(packedData, offset + 4);
-//      int g = unpackUInt8(packedData, offset + 5);
-//      int b = unpackUInt8(packedData, offset + 6);
-
-//      Point point = new Point(x / 32767.5 - 1, y / 32767.5 - 1, r, g, b);
-//      pointList.add(point);
-//      //println("["+(i+1)+"/"+numPoints+"]\t"+ point.toString());
-//    }
-//    points = pointList;
-//    frameDirty = true;
-//    redraw();
-//  }
-//}
-
-
 int unpackUInt16(byte[] bytes, int offset) {
   return ((bytes[offset + 1] & 0xFF) << 8) | (bytes[offset] & 0xFF);
 }
@@ -811,6 +757,39 @@ class PointInfo {
   } 
 }
 
+//
+// Here lies the graveyard of code
+//
+// void renderGalvoPathCombinedImg(ArrayList ppoints, PGraphics g) {
+//   int npoints = ppoints.size();
+//   float w = g.width;
+//   g.beginDraw();
+//   g.background(0);
+//   g.blendMode(ADD);
+//   g.noFill();
+//   g.stroke(255, 255, 255, 64);
+//   g.strokeWeight(1);
+//   
+//   g.rect(0, 0, g.width-1, g.height-1);
+//   g.strokeWeight(2);
+//   
+//   g.beginShape(POINTS);
+//   for (int i = 0; i < w; i++) {
+//     int pidx = (int)((i / w) * npoints);    
+//     Point p = (Point)ppoints.get(pidx);
+//     float xpos = 0.5 * (p.x + 1) * g.height;
+//     float ypos = 0.5 * (p.y + 1) * g.height;
+//     
+//     g.stroke(10, 255, 10);
+//     g.vertex(i, xpos);
+//     g.stroke(255, 255, 10);
+//     g.vertex(i, ypos);
+//   }
+//   g.endShape();
+//   g.endDraw();
+// }
+
+
 
 // void addPathInfo(ArrayList<Point> lpoints) {
 //   int npoints = lpoints.size();
@@ -866,5 +845,34 @@ class PointInfo {
 //   }
 //   pathsHistory.addValue(npaths);
 // }
+
+
+//void oscEventUncompressed(OscMessage message) {
+//  ArrayList<Point> pointList = new ArrayList();
+//  if (message.checkAddrPattern("/f")) {
+//    byte[] packedData = message.get(0).bytesValue();
+
+//    // [uint16 uint16 uint8 uint8 uint8 ]  = 7 bytes
+//    int numPoints = packedData.length / 7; 
+//    pointList.clear();
+
+//    for (int i = 0; i < numPoints; i++) {
+//      int offset = i * 7;
+//      int x = unpackUInt16(packedData, offset);
+//      int y = unpackUInt16(packedData, offset + 2);
+//      int r = unpackUInt8(packedData, offset + 4);
+//      int g = unpackUInt8(packedData, offset + 5);
+//      int b = unpackUInt8(packedData, offset + 6);
+
+//      Point point = new Point(x / 32767.5 - 1, y / 32767.5 - 1, r, g, b);
+//      pointList.add(point);
+//      //println("["+(i+1)+"/"+numPoints+"]\t"+ point.toString());
+//    }
+//    points = pointList;
+//    frameDirty = true;
+//    redraw();
+//  }
+//}
+
 
 
