@@ -122,22 +122,30 @@ void draw() {
     return;
   }
 
+  // we have to mess with frame rates because we want uncapped
+  // when receiving but not in snapshot mode
   if (updateFrameRate) {
     frameRate(targetFrameRate);
     updateFrameRate = false;
   }
+  
+  // TODO: only do this on resize
+  updateScreenRects();
 
   ArrayList<Point> lpoints = new ArrayList(points);
+  ArrayList<Region> lregions = analyzer.getRegions(lpoints);
+  
   int mx = mouseX, my = mouseY; 
-  background(8);
-  camera();
-
-  updateScreenRects();
   updateCursors(mx, my, lpoints);
+  ArrayList<Region> regionsAtSelection = analyzer.getRegionsAtIndex(selectedPointIndex);
+
+  background(8);
+  //camera();
+
 
   if (frameDirty || snapshotModeEnabled) {
     renderProjectionImg(lpoints, projectionCtx);
-    renderGalvoPathImg(lpoints, galvoPlotCtx);
+    renderGalvoPathImg(lpoints, lregions, galvoPlotCtx);
     frameDirty = false;
   }
 
@@ -204,8 +212,19 @@ void draw() {
                   width-projScreenRect.w-plotMargin*2, height-galvoPlotHeight-plotMargin*2,
                   plotRows, plotCols);
   
+  String infoText = getSelectionInfoText(regionsAtSelection);
+  fill(255);
+  noStroke();
+  textSize(30);
+  text(infoText, padding*2, padding*2);
+
   prevFrameFinalPoint = lpoints.get(npoints-1);
 }
+
+
+// void drawSelectionInfoPanel(int x, int y, ) {
+//   // TODO
+// }
 
 int findClosestPointIndex(float px, float py, ArrayList points) {
   int npoints = points.size();
@@ -222,6 +241,35 @@ int findClosestPointIndex(float px, float py, ArrayList points) {
     }
   }
   return minIndex;
+}
+
+String getSelectionInfoText(ArrayList<Region> regionsAtSelection) {
+  if (selectedPoint == null | selectedPointIndex < 0) {
+    return "NO SELECTION";
+  }
+
+  String dwellString = "";
+  String pathString = "";
+  String blankString = "";
+
+  for (int i=0; i<regionsAtSelection.size(); i++) {
+    Region r = regionsAtSelection.get(i);
+    if (r.type == Region.DWELL) {
+      dwellString += String.format("DWELL: %d ", r.pointCount);
+    }
+    if (r.type == Region.PATH) {
+      pathString += String.format("PATH: %d ", r.pointCount);
+    }
+    if (r.type == Region.BLANK) {
+      blankString += String.format("BLANK: %d ", r.pointCount);
+    }
+
+  } 
+  String info = String.format(
+      "[i: %d] [pos: %d, %d] %s%s%s",
+      selectedPointIndex, (int)(selectedPoint.x*2047), (int)(selectedPoint.y*2047),
+      pathString, blankString, dwellString);
+  return info;
 }
 
 
@@ -348,8 +396,8 @@ void checkMouse() {
   if (selectedPointIndex >= 0) {
     fill(255);
     textSize(24);
-    // int cx = (int)(((float)selectedPointIndex / pointsHistory.expMovingAvg)
-    int cx = (int)(((float)selectedPointIndex / smoothPoints.expMovingAvg)
+    int cx = (int)(((float)selectedPointIndex / pointsHistory.expMovingAvg)
+    //int cx = (int)(((float)selectedPointIndex / smoothPoints.expMovingAvg)
              * galvoPlotScreenRect.w);
     text(selectedPointIndex, cx, galvoPlotScreenRect.y+galvoPlotScreenRect.h-8);
   }
@@ -372,7 +420,7 @@ void mouseClicked() {
   println("galvoPlotFitToWidth: ", galvoPlotFitToWidth);
 }
 
-void renderGalvoPathImg(ArrayList ppoints, PGraphics g) {
+void renderGalvoPathImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PGraphics g) {
   int vmargin = 20;
   int infoHeight = 50;
   int plotHeight = g.height - infoHeight;
@@ -389,7 +437,7 @@ void renderGalvoPathImg(ArrayList ppoints, PGraphics g) {
   //g.line(0, g.height/2, g.width, g.height/2);
 
   // Regions
-  ArrayList<Region> regions = analyzer.getRegions(ppoints);
+  //ArrayList<Region> regions = analyzer.getRegions(ppoints);
   int nregions = regions.size();
   int npaths = 0;
   for (int ridx=0; ridx < nregions; ridx++) {
@@ -416,14 +464,14 @@ void renderGalvoPathImg(ArrayList ppoints, PGraphics g) {
 
         g.stroke(0, 0, 0);
         for (int pidx=region.startIndex; pidx <= region.endIndex; pidx++) {
-          Point p1 = (Point)ppoints.get(pidx);
+          Point p1 = ppoints.get(pidx);
           g.fill(p1.r, p1.g, p1.b, 96);
           g.rect((float)pidx/npoints * w+1, vmargin/2+4, xw/region.pointCount, vmargin/2-6);
         }
         break;
       case Region.DWELL:
         int dheight;
-        if (((Point)ppoints.get(region.startIndex)).isBlank()) {
+        if ((ppoints.get(region.startIndex)).isBlank()) {
           g.stroke(255,255,255,96);
           g.strokeWeight(1);
           dheight = vmargin/2-3;
@@ -444,7 +492,7 @@ void renderGalvoPathImg(ArrayList ppoints, PGraphics g) {
   g.beginShape();
   for (int i = 0; i < w; i++) {
     int pidx = (int)((i / w) * npoints);    
-    Point p = (Point)ppoints.get(pidx);
+    Point p = ppoints.get(pidx);
     float xpos = vmargin + 1 + 0.5 * (p.x + 1) * (g.height/2 - vmargin*2);
     //float xpos = vmargin + 0.5 * (p.x + 1) * (g.height/2 - vmargin*2);
     if (p.isBlank()) {
@@ -465,7 +513,7 @@ void renderGalvoPathImg(ArrayList ppoints, PGraphics g) {
   g.beginShape();
   for (int i = 0; i < w; i++) {
     int pidx = (int)((i / w) * npoints);    
-    Point p = (Point)ppoints.get(pidx);
+    Point p = ppoints.get(pidx);
     float ypos = g.height/2 + vmargin + 1 + 0.5 * (p.y + 1) * (g.height/2 - vmargin*2);
     if (p.isBlank()) {
       g.strokeWeight(1);
@@ -484,7 +532,7 @@ void renderGalvoPathImg(ArrayList ppoints, PGraphics g) {
   // Highlight the selected point
   if (selectedPointIndex >= 0 && selectedPointIndex < npoints-1) {
     int cx = (int)(((float)selectedPointIndex / npoints) * w);
-    Point p1 = (Point)ppoints.get(selectedPointIndex);
+    Point p1 = ppoints.get(selectedPointIndex);
     g.stroke(192);
     g.strokeWeight(2);
     g.line(cx, vmargin+2, cx, galvoPlotCtxRect.h-vmargin-2);
