@@ -15,7 +15,6 @@ Boolean updateFrameRate = false;
 Boolean snapshotModeEnabled = false;
 
 Boolean showBlankLines = true;
-Boolean galvoPlotFitToWidth = false;
 
 int selectedPointIndex = -1;
 
@@ -24,10 +23,11 @@ final Rect projectionCtxRect = new Rect(0, 0, 1024, 1024);
 Rect projScreenRect = new Rect(0, 0, 1024, 1024);
 Point projScreenCursor = new Point(0,0);
 
-int galvoPlotHeight = 768;
+int galvoPlotHeight = 600;
 PGraphics galvoPlotCtx;
 final Rect galvoPlotCtxRect = new Rect(0, 0, 4096, 512);
 Rect galvoPlotScreenRect = new Rect(0, 0, 1024, galvoPlotHeight);
+Boolean galvoPlotFitToWidth = true;
 
 // the mouse cursor, in galvo plot image space
 float galvoPlotCursorX = 0.0;
@@ -62,15 +62,14 @@ void updateScreenRects() {
   // Galvo plot
   int widthnew;
   if (galvoPlotFitToWidth) {
-    int desiredwidth = (int)(smoothPoints.expMovingAvg/4096.0*width*1);
-    //int desiredwidth = (int)(smoothPoints.expMovingAvg/4096.0*galvoPlotScreenRect.w*1);
-    widthnew = min(desiredwidth, width);
-  }
-  else {
     widthnew = width;
   }
+  else {
+    galvoPlotScreenRect.w = width;
+    int desiredwidth = (int)(smoothPoints.expMovingAvg/4096.0*galvoPlotScreenRect.w*1);
+    widthnew = min(desiredwidth, width);
+  }
   galvoPlotScreenRect.set(0, height-galvoPlotHeight, widthnew, galvoPlotHeight);
-
 }
 
 void setup() {
@@ -79,7 +78,6 @@ void setup() {
   surface.setLocation(0, 40);
   textSize(24);
   frameRate(480);
-  updateScreenRects();
 
   projectionCtx = createGraphics(projectionCtxRect.w, projectionCtxRect.h, P2D);
   galvoPlotCtx = createGraphics(galvoPlotCtxRect.w, galvoPlotCtxRect.h, P2D);
@@ -114,6 +112,7 @@ void setup() {
   // For caclulation only, dont add to layout:
   smoothPoints = new HistoryPlot("SmoothPoints", historyLength, 0, 4096, 20, "","");
 
+  updateScreenRects();
 }
 
 
@@ -365,6 +364,7 @@ void mouseClicked() {
   if (mouseY > height - galvoPlotHeight) {
     galvoPlotFitToWidth = !galvoPlotFitToWidth;
   }
+  println("galvoPlotFitToWidth: ", galvoPlotFitToWidth);
 }
 
 void renderGalvoPathImg(ArrayList ppoints, PGraphics g) {
