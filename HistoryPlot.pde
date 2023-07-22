@@ -8,6 +8,7 @@ class HistoryPlot {
   int currentIndex;
   float emaWindowSize;
   float expMovingAvg;
+  float bufferAvg;
   String numberFormat = "float";
   String units = "";
 
@@ -21,12 +22,14 @@ class HistoryPlot {
     this.numberFormat = numberFormat;
     this.units = units;
     this.expMovingAvg = 0.0;
+    this.bufferAvg = 0.0;
     this.currentIndex = -1;
     println("HistoryPlot: ", this.name, this.historyLength);
   }
 
   public void addValue(float newValue) {
     expMovingAvg = computeExpMovingAvg(newValue);
+    bufferAvg = computeBufferAvg(newValue);
     currentIndex = (currentIndex+1) % historyLength;
     values[currentIndex] = expMovingAvg;
   }
@@ -35,6 +38,10 @@ class HistoryPlot {
   float computeExpMovingAvg(float val) {
     float smooth = 2.0 / (emaWindowSize + 1);
     return (val - expMovingAvg) * smooth + expMovingAvg;
+  }
+  float computeBufferAvg(float val) {
+    float smooth = 2.0 / (historyLength + 1);
+    return (val - bufferAvg) * smooth + bufferAvg;
   }
 
 
@@ -117,7 +124,7 @@ class HistoryPlot {
     }
 
     // center line
-    stroke(255,255,255,48);
+    stroke(255,255,255,32);
     strokeWeight(1);
     line(x, y+h/2, x+w-indicatorWidth, y+h/2);
 
@@ -126,18 +133,35 @@ class HistoryPlot {
     // fill(255,255,255,128);
     // rect(xpos-10, ypos, 10, ylen);
     
+    // buffer average
+    int bavgy  = (int)(y+h - bufferAvg/range*h);
+
+    if (ypos < bavgy) {
+      stroke(255,0,0,255);
+    }
+    else {
+      stroke(64,64,255,255);
+    }
+    strokeWeight(4);
+    line(x+w-indicatorWidth+4, ypos, x+w-indicatorWidth+4, bavgy);
+    //line(x+w-2, ypos, x+w-2, bavgy);
+    
+    strokeWeight(4);
+    stroke(255,255,255,255);
+    line(x+w - indicatorWidth+2, bavgy, x+w-indicatorWidth+12, bavgy);
+
     // needle
     strokeWeight(1);
     stroke(255,255,255,255);
-    line(x+w - indicatorWidth*3/4, ypos, x+w, ypos);
+    line(x+w - indicatorWidth*3/4, ypos, x+w-2, ypos);
     
     strokeWeight(3);
     stroke(255,255,255,255);
-    line(x+w - indicatorWidth/2, ypos, x+w, ypos);
+    line(x+w - indicatorWidth/2, ypos, x+w-2, ypos);
     
     strokeWeight(5);
     stroke(255,255,255);
-    line(x+w-indicatorWidth/4, ypos, x+w, ypos);
+    line(x+w-indicatorWidth/4, ypos, x+w-2, ypos);
     //line(xpos-10, ypos, xpos, ypos);
 
     // // needlepoint
@@ -157,14 +181,14 @@ class HistoryPlot {
     int gradLen = 16;
     int step = h / (numGrads);
     for (int gy=0; gy<=numGrads; gy++) {
-      line(x+w - indicatorWidth, y + gy*step,
+      line(x+w - indicatorWidth+1, y + gy*step,
            x+w - indicatorWidth + gradLen, y + gy*step);
     }
     numGrads = 8;
     gradLen = 6;
     step = h / (numGrads);
     for (int gy=0; gy<=numGrads; gy++) {
-      line(x+w - indicatorWidth, y + gy*step,
+      line(x+w - indicatorWidth+1, y + gy*step,
            x+w - indicatorWidth + gradLen, y + gy*step);
     }
 
@@ -187,24 +211,6 @@ class HistoryPlot {
     }
     else {
       text(String.format("% 4.0f%s", (rangeMax-rangeMin)/2, units), xpos, yCenterPos);
-    }
-  }
-
-  public void draw1(int x, int y, int w, int h) {
-    stroke(255,255,255,64);
-    strokeWeight(1);
-    fill(0, 0, 0, 192);
-    rect(x,y,w,h);
-    fill(255,255,255);
-    textSize(16);
-    text(name, x+5, y+21);
-    noFill();
-    stroke(255,255,255,240);
-    for (int i = 0; i < w; i++) {
-      int hidx = (currentIndex + i) % historyLength;
-      float xpos = x + i;
-      float ypos = y + 1 + (1 - values[hidx]) * (h-2);
-      point(xpos, ypos);
     }
   }
 }
