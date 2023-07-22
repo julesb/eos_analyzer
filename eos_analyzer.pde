@@ -138,7 +138,6 @@ void draw() {
   int mx = mouseX, my = mouseY; 
   updateCursors(mx, my, lpoints);
   ArrayList<Region> regionsAtSelection = analyzer.getRegionsAtIndex(selectedPointIndex);
-
   background(8);
   //camera();
 
@@ -243,32 +242,18 @@ int findClosestPointIndex(float px, float py, ArrayList points) {
   return minIndex;
 }
 
+
 String getSelectionInfoText(ArrayList<Region> regionsAtSelection) {
   if (selectedPoint == null | selectedPointIndex < 0) {
     return "NO SELECTION";
   }
 
-  String dwellString = "";
-  String pathString = "";
-  String blankString = "";
-
+  String info = String.format("[i: %d] [pos: %d, %d]",
+    selectedPointIndex, (int)(selectedPoint.x*2047), (int)(selectedPoint.y*2047));
   for (int i=0; i<regionsAtSelection.size(); i++) {
     Region r = regionsAtSelection.get(i);
-    if (r.type == Region.DWELL) {
-      dwellString += String.format("DWELL: %d ", r.pointCount);
-    }
-    if (r.type == Region.PATH) {
-      pathString += String.format("PATH: %d ", r.pointCount);
-    }
-    if (r.type == Region.BLANK) {
-      blankString += String.format("BLANK: %d ", r.pointCount);
-    }
-
-  } 
-  String info = String.format(
-      "[i: %d] [pos: %d, %d] %s%s%s",
-      selectedPointIndex, (int)(selectedPoint.x*2047), (int)(selectedPoint.y*2047),
-      pathString, blankString, dwellString);
+    info += String.format("[%s]", r.toString());
+  }
   return info;
 }
 
@@ -560,7 +545,6 @@ void renderProjectionImg(ArrayList ppoints, PGraphics g) {
   g.stroke(255, 255, 255, 32);
   g.strokeWeight(1);
   g.square(-g.height/2, -g.height/2, g.height-1);
-  
   g.beginShape(LINES);
   for (int i = 0; i < npoints; i++) {
     int pidx1 = i;
@@ -574,13 +558,16 @@ void renderProjectionImg(ArrayList ppoints, PGraphics g) {
       if (showBlankLines) {
         g.strokeWeight(1);
         g.stroke(64, 64, 64);
-      } else {
+      }
+      else {
         continue;
       }
-    } else {
-      g.strokeWeight(4);
-      g.stroke(p1.r, p1.g, p1.b, 160);
     }
+    else {
+      g.strokeWeight(4);
+      g.stroke(p1.r, p1.g, p1.b, 128);
+    }
+
     if (p1.posEqual(p2)) {
       g.vertex(p1.x*-s+1.0, p1.y*s+1.0);
       g.vertex(p2.x*-s, p2.y*s);
@@ -588,8 +575,8 @@ void renderProjectionImg(ArrayList ppoints, PGraphics g) {
     else {
       g.vertex(p1.x*-s, p1.y*s);
       g.vertex(p2.x*-s, p2.y*s);
-        
     }
+
   }
   g.endShape();
 
@@ -649,6 +636,9 @@ void keyTyped() {
   switch(key) {
     case ' ':
       setSnapshotMode(!snapshotModeEnabled);
+      break;
+    case 'b':
+      showBlankLines = !showBlankLines;
       break;
   }
 }
