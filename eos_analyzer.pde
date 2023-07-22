@@ -24,7 +24,8 @@ final Rect projectionCtxRect = new Rect(0, 0, 1024, 1024);
 Rect projScreenRect = new Rect(0, 0, 1024, 1024);
 Point projScreenCursor = new Point(0,0);
 
-int galvoPlotHeight = 600;
+int galvoPlotHeight = 768;
+
 PGraphics galvoPlotCtx;
 final Rect galvoPlotCtxRect = new Rect(0, 0, 4096, 512);
 Rect galvoPlotScreenRect = new Rect(0, 0, 1024, galvoPlotHeight);
@@ -207,8 +208,8 @@ void draw() {
     plotRows = 4;
     plotCols = 2;  
   }
-  drawPlotsLayout(projScreenRect.w+plotMargin*2, 0, //plotMargin/2,
-                  width-projScreenRect.w-plotMargin*2, height-galvoPlotHeight-plotMargin*2,
+  drawPlotsLayout(projScreenRect.w+plotMargin*2, 1, //plotMargin/2,
+                  width-projScreenRect.w-plotMargin*2, height-galvoPlotHeight-plotMargin*2+1,
                   plotRows, plotCols);
   
   String infoText = getSelectionInfoText(regionsAtSelection);
@@ -405,26 +406,26 @@ void mouseClicked() {
   println("galvoPlotFitToWidth: ", galvoPlotFitToWidth);
 }
 
-void renderGalvoPathImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PGraphics g) {
-  int vmargin = 20;
-  int infoHeight = 50;
-  int plotHeight = g.height - infoHeight;
-  int npoints = ppoints.size();
-  float w = g.width;
-  g.beginDraw();
-  g.background(0);
-  g.blendMode(ADD);
-  g.stroke(255, 255, 255, 32);
-  g.strokeWeight(1);
-  g.noFill();
-  //g.rect(0, vmargin, g.width-1, g.height/2 - vmargin);
-  //g.rect(0, g.height/2+vmargin, g.width-1, g.height/2 - vmargin*2);
-  //g.line(0, g.height/2, g.width, g.height/2);
 
-  // Regions
-  //ArrayList<Region> regions = analyzer.getRegions(ppoints);
+void drawRegions(int x, int y, int w, int h, 
+    ArrayList<Point> ppoints, ArrayList<Region> regions, PGraphics g) {
+  int npoints = ppoints.size();
   int nregions = regions.size();
-  int npaths = 0;
+  int pad = 1;
+  float nchannels = 4;
+  float channelPad = 2;
+  float channelHeight = (h - (channelPad * (0 + nchannels))) / nchannels;
+
+  int vpad = 50;
+  int npaths = 0; 
+  float y1;
+
+  g.blendMode(REPLACE);
+
+  g.noStroke();
+  //g.fill(255,255,255,8);
+  //g.rect(x, y, w-1, h-1);
+
   for (int ridx=0; ridx < nregions; ridx++) {
     Region region = regions.get(ridx);
     float x1 = (float)region.startIndex / npoints * w;
@@ -432,45 +433,131 @@ void renderGalvoPathImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PGr
     float xw = x2 - x1;
     switch(region.type) {
       case Region.BLANK:
-        //g.noStroke();
-        g.strokeWeight(1);
-        g.stroke(255,255,255,128);
-        g.fill(0);
+        //g.strokeWeight(1);
+        //g.stroke(255,255,255,128);
+        g.fill(0,0,0, 255);
+        g.noStroke();
         //g.fill(255,0,0,192);
-        g.rect(x1, g.height-vmargin/2-4, xw, vmargin/2-2);
+        y1 = y + pad + channelHeight * 2;
+        g.rect((int)x1, (int)y1+1, (int)xw, (int)channelHeight-2);
         break;
       case Region.PATH:
         npaths++;
-        g.strokeWeight(1);
-        g.stroke(255,255,255,32);
+        //g.strokeWeight(1);
+        //g.stroke(255,255,255,32);
+        g.noStroke();
         g.fill(255,255,255,8);
-        g.rect(x1, vmargin+2, xw, g.height/2-vmargin*2);
-        g.rect(x1, g.height/2+vmargin+2, xw, g.height/2-vmargin*2);
+        y1 = y + pad + channelHeight * 3;
+        g.rect(x1, y1, xw, channelHeight);
 
-        g.stroke(0, 0, 0);
+        //g.stroke(0, 0, 0);
         for (int pidx=region.startIndex; pidx <= region.endIndex; pidx++) {
           Point p1 = ppoints.get(pidx);
           g.fill(p1.r, p1.g, p1.b, 96);
-          g.rect((float)pidx/npoints * w+1, vmargin/2+4, xw/region.pointCount, vmargin/2-6);
+          y1 = y + pad + channelHeight * 3;
+          g.rect((float)pidx/npoints * w+1, y1, xw/region.pointCount, channelHeight);
         }
         break;
       case Region.DWELL:
-        int dheight;
         if ((ppoints.get(region.startIndex)).isBlank()) {
           g.stroke(255,255,255,96);
           g.strokeWeight(1);
-          dheight = vmargin/2-3;
+          g.fill(0,0,0);
+          //g.noStroke();
+          y1 = y + pad + channelHeight * 0;
+          g.rect(x1, y1+1, xw, channelHeight-2);
         }
         else {
+          g.fill(region.col[0],region.col[1],region.col[2],192);
           g.noStroke();
-          dheight = vmargin/2-2;
+          y1 = y + pad + channelHeight * 1;
+          g.rect(x1, y1, xw, channelHeight);
         }
-        g.fill(region.col[0],region.col[1],region.col[2],192);
-        g.rect(x1+1, 2, xw-1, dheight);
         break;
     }
   }
+
   pathsHistory.addValue(npaths);
+}
+
+void renderGalvoPathImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PGraphics g) {
+  int vpad = 20;
+  int infoAreaHeight = 20;
+  int regionAreaHeight = 50;
+  int plotAreaMinY = regionAreaHeight+1;
+  int plotAreaMaxY = g.height - infoAreaHeight -1;
+  int plotAreaCenterY = (plotAreaMinY+plotAreaMaxY)/2;
+  int plotAreaHeight = plotAreaMaxY - plotAreaMinY;
+  int plotHeight = plotAreaHeight/2 - vpad*2; // height of a single plot
+
+  int xplotCenterY = plotAreaMinY + vpad + plotHeight/2;
+  int yplotCenterY = plotAreaMaxY - vpad - plotHeight/2;
+
+  int npoints = ppoints.size();
+  int nregions = regions.size();
+  float w = g.width;
+  int h = g.height;
+  g.beginDraw();
+  g.background(0);
+
+  drawRegions(0, 0, (int)w-1, regionAreaHeight, ppoints, regions, g);
+
+  g.blendMode(ADD);
+
+  //g.rect(0, vpad, g.width-1, g.height/2 - vpad);
+  //g.rect(0, g.height/2+vpad, g.width-1, g.height/2 - vpad*2);
+  //g.line(0, g.height/2, g.width, g.height/2);
+
+  g.noFill();
+
+  g.strokeWeight(1);
+
+  // Image border
+  // g.stroke(0, 255,0);
+  // g.rect(0, 0, g.width-1, g.height-1);
+
+  // Regions area lower border
+  // g.stroke(0, 0, 255);
+  // g.line(0, regionAreaHeight-1, g.width-1, regionAreaHeight-1);
+
+  // Plot area vertical center
+  g.stroke(255, 255, 255, 32);
+  // g.line(0, plotAreaCenterY, g.width-1, plotAreaCenterY);
+
+  // Top border
+  g.line(0, 0,g.width-1, 0);
+
+  // Plot area min max
+  g.line(0, plotAreaMinY, g.width-1, plotAreaMinY);
+  g.line(0, plotAreaMaxY, g.width-1, plotAreaMaxY);
+
+  // Plot min max
+  g.line(0, plotAreaMinY + vpad, g.width-1, plotAreaMinY+vpad);
+  g.line(0, plotAreaCenterY - vpad, g.width-1, plotAreaCenterY - vpad);
+  
+  g.line(0, plotAreaMaxY - vpad, g.width-1, plotAreaMaxY-vpad);
+  g.line(0, plotAreaCenterY + vpad, g.width-1, plotAreaCenterY + vpad);
+
+  // Plot center lines
+  // g.stroke(255, 255, 0);
+  // g.line(0, xplotCenterY, g.width-1, xplotCenterY);
+  // g.line(0, yplotCenterY, g.width-1, yplotCenterY);
+  
+  //g.strokeWeight(1);
+  //g.stroke(255,255,255,32);
+
+  // Path region highlight
+  g.noStroke();
+  g.fill(255,255,255,8);
+  for (int ridx=0; ridx < nregions; ridx++) {
+    Region region = regions.get(ridx);
+    if (region.type == Region.PATH) {
+      float x1 = (float)region.startIndex / npoints * w;
+      float x2 = (float)region.endIndex / npoints * w;
+      float xw = x2 - x1;
+      g.rect(x1, plotAreaMinY, xw, plotAreaHeight);
+    }
+  }
   g.noFill();
 
   // X galvo plot
@@ -478,33 +565,10 @@ void renderGalvoPathImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PGr
   for (int i = 0; i < w; i++) {
     int pidx = (int)((i / w) * npoints);    
     Point p = ppoints.get(pidx);
-    float xpos = vmargin + 1 + 0.5 * (p.x + 1) * (g.height/2 - vmargin*2);
-    //float xpos = vmargin + 0.5 * (p.x + 1) * (g.height/2 - vmargin*2);
+    float ypos = xplotCenterY + p.x * plotHeight/2;
     if (p.isBlank()) {
       g.strokeWeight(1);
-      //g.stroke(255, 192, 192, 64);
       g.stroke(255, 255, 255, 96);
-      //g.stroke(64, 64, 64);
-    }
-    else {
-      g.strokeWeight(2);
-      g.stroke(p.r, p.g, p.b);
-    }
-    g.vertex(i, xpos);
-  }
-  g.endShape();
-  
-  // Y galvo plot
-  g.beginShape();
-  for (int i = 0; i < w; i++) {
-    int pidx = (int)((i / w) * npoints);    
-    Point p = ppoints.get(pidx);
-    float ypos = g.height/2 + vmargin + 1 + 0.5 * (p.y + 1) * (g.height/2 - vmargin*2);
-    if (p.isBlank()) {
-      g.strokeWeight(1);
-      //g.stroke(255, 192, 192, 64);
-      g.stroke(255, 255, 255, 96);
-      //g.stroke(64, 64, 64);
     }
     else {
       g.strokeWeight(2);
@@ -514,19 +578,39 @@ void renderGalvoPathImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PGr
   }
   g.endShape();
   
+  // Y galvo plot
+  g.beginShape();
+  for (int i = 0; i < w; i++) {
+    int pidx = (int)((i / w) * npoints);    
+    Point p = ppoints.get(pidx);
+    float ypos = yplotCenterY + p.y * plotHeight/2;
+    if (p.isBlank()) {
+      g.strokeWeight(1);
+      g.stroke(255, 255, 255, 96);
+    }
+    else {
+      g.strokeWeight(2);
+      g.stroke(p.r, p.g, p.b);
+    }
+    g.vertex(i, ypos);
+  }
+  g.endShape();
+ 
+
+
   // Highlight the selected point
   if (selectedPointIndex >= 0 && selectedPointIndex < npoints-1) {
     int cx = (int)(((float)selectedPointIndex / npoints) * w);
     Point p1 = ppoints.get(selectedPointIndex);
     g.stroke(192);
     g.strokeWeight(2);
-    g.line(cx, vmargin+2, cx, galvoPlotCtxRect.h-vmargin-2);
+    g.line(cx, vpad+2, cx, galvoPlotCtxRect.h-vpad-2);
     //g.line(p1.x*-s, p1.y*s, p2.x*-s, p2.y*s );
     //g.ellipse(p1.x*-s, p1.y*s, 25, 25);
 
     // g.fill(255);
     // g.textSize(36);
-    // g.text(selectedPointIndex, cx, g.height-vmargin+2);
+    // g.text(selectedPointIndex, cx, g.height-vpad+2);
   }
   g.endDraw();
 }
