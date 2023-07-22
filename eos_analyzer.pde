@@ -444,7 +444,7 @@ void renderGalvoPathImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PGr
         g.strokeWeight(1);
         g.stroke(255,255,255,32);
         g.fill(255,255,255,8);
-        g.rect(x1, vmargin+2, xw, g.height/2-vmargin-4);
+        g.rect(x1, vmargin+2, xw, g.height/2-vmargin*2);
         g.rect(x1, g.height/2+vmargin+2, xw, g.height/2-vmargin*2);
 
         g.stroke(0, 0, 0);
