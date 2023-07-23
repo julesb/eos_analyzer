@@ -139,6 +139,9 @@ void draw() {
   int mx = mouseX, my = mouseY; 
   updateCursors(mx, my, lpoints);
   ArrayList<Region> regionsAtSelection = analyzer.getRegionsAtIndex(selectedPointIndex);
+  for (int i=0; i < regionsAtSelection.size(); i++) {
+    regionsAtSelection.get(i).selected = true;
+  }
   background(8);
   //camera();
 
@@ -291,7 +294,7 @@ void updateCursors(int mx, int my, ArrayList<Point> points) {
     float s = projectionCtxRect.w / 2;
     Point cursorPoint = new Point(projCursorX / s * -1.0, projCursorY / s);
     int closestIndex = findClosestPointIndex(cursorPoint, points);
-    if (closestIndex > -1 && cursorPoint.dist(points.get(closestIndex)) < 0.1) {
+    if (closestIndex > -1 && cursorPoint.dist(points.get(closestIndex)) < 0.25) {
       selectedPointIndex = closestIndex;
       selectedPoint = points.get(selectedPointIndex);
     }
@@ -513,8 +516,8 @@ void renderGalvoPathImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PGr
   // g.rect(0, 0, g.width-1, g.height-1);
 
   // Regions area lower border
-  // g.stroke(0, 0, 255);
-  // g.line(0, regionAreaHeight-1, g.width-1, regionAreaHeight-1);
+  // g.stroke(255, 255, 255, 32);
+  // g.line(0, regionAreaHeight-0, g.width-1, regionAreaHeight-0);
 
   // Plot area vertical center
   g.stroke(255, 255, 255, 32);
@@ -528,9 +531,9 @@ void renderGalvoPathImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PGr
   g.line(0, plotAreaMaxY, g.width-1, plotAreaMaxY);
 
   // Plot min max
+  g.stroke(255, 255, 255, 16);
   g.line(0, plotAreaMinY + vpad, g.width-1, plotAreaMinY+vpad);
   g.line(0, plotAreaCenterY - vpad, g.width-1, plotAreaCenterY - vpad);
-  
   g.line(0, plotAreaMaxY - vpad, g.width-1, plotAreaMaxY-vpad);
   g.line(0, plotAreaCenterY + vpad, g.width-1, plotAreaCenterY + vpad);
 
@@ -547,12 +550,25 @@ void renderGalvoPathImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PGr
   g.fill(255,255,255,8);
   for (int ridx=0; ridx < nregions; ridx++) {
     Region region = regions.get(ridx);
-    if (region.type == Region.PATH) {
+    if (region.type == Region.PATH || region.type == Region.BLANK) {
       float x1 = (float)region.startIndex / npoints * w;
       float x2 = (float)region.endIndex / npoints * w;
       float xw = x2 - x1;
-      g.rect(x1, plotAreaMinY+vpad, xw, plotHeight);
-      g.rect(x1, plotAreaMinY+plotHeight+vpad*3, xw, plotHeight);
+      if (region.selected) {
+        if (region.type == Region.PATH) {
+          g.fill(128, 128, 255, 32);
+        }
+        else {
+          g.fill(128, 128, 255, 24);
+        }
+      }
+      else {
+        g.fill(255,255,255,8);
+      }
+      if (region.type == Region.PATH || region.selected) {
+        g.rect(x1, plotAreaMinY+vpad, xw, plotHeight);
+        g.rect(x1, plotAreaMinY+plotHeight+vpad*3, xw, plotHeight);
+      }
     }
   }
   g.noFill();

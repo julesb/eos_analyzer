@@ -113,6 +113,8 @@ class Region {
   int pointCount = 0;
   int[] col = {0,0,0}; // for dwell only
 
+  Boolean selected = false;
+
   public Region() {}
   
   public Region(int type, int startIdx, int endIdx) {
