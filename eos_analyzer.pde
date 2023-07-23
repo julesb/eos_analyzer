@@ -68,7 +68,7 @@ void updateScreenRects() {
   }
   else {
     galvoPlotScreenRect.w = width;
-    int desiredwidth = (int)(smoothPoints.expMovingAvg/4096.0*galvoPlotScreenRect.w*1);
+    int desiredwidth = (int)(smoothPoints.expMovingAvg/4096.0*galvoPlotScreenRect.w*2);
     widthnew = min(desiredwidth, width);
   }
   galvoPlotScreenRect.set(0, height-galvoPlotHeight, widthnew, galvoPlotHeight);
@@ -413,15 +413,22 @@ void drawRegions(int x, int y, int w, int h,
   int nregions = regions.size();
   int pad = 1;
   float nchannels = 4;
-  float channelPad = 2;
+  float channelPad = 1;
   float channelHeight = (h - (channelPad * (0 + nchannels))) / nchannels;
 
-  int vpad = 50;
+  int vpad = 10;
   int npaths = 0; 
   float y1;
 
+  final int channelRankDwellBlank = 0;
+  final int channelRankDwellColor = 1;
+  final int channelRankBlank      = 2;
+  final int channelRankPath       = 3;
+
+
   g.blendMode(REPLACE);
 
+  g.strokeWeight(1);
   g.noStroke();
   //g.fill(255,255,255,8);
   //g.rect(x, y, w-1, h-1);
@@ -433,45 +440,35 @@ void drawRegions(int x, int y, int w, int h,
     float xw = x2 - x1;
     switch(region.type) {
       case Region.BLANK:
-        //g.strokeWeight(1);
-        //g.stroke(255,255,255,128);
+        g.stroke(255,255,255,96);
         g.fill(0,0,0, 255);
-        g.noStroke();
-        //g.fill(255,0,0,192);
-        y1 = y + pad + channelHeight * 2;
-        g.rect((int)x1, (int)y1+1, (int)xw, (int)channelHeight-2);
+        y1 = y + pad + channelHeight * channelRankBlank;
+        g.rect((int)x1, (int)y1+channelHeight/4, (int)xw, (int)channelHeight/2);
         break;
       case Region.PATH:
         npaths++;
-        //g.strokeWeight(1);
-        //g.stroke(255,255,255,32);
         g.noStroke();
-        g.fill(255,255,255,8);
-        y1 = y + pad + channelHeight * 3;
-        g.rect(x1, y1, xw, channelHeight);
-
-        //g.stroke(0, 0, 0);
+        g.fill(255,255,255,32);
+        y1 = y + pad + channelHeight * channelRankPath;
+        //g.rect(x1, y1, xw, channelHeight/2);
         for (int pidx=region.startIndex; pidx <= region.endIndex; pidx++) {
           Point p1 = ppoints.get(pidx);
-          g.fill(p1.r, p1.g, p1.b, 96);
-          y1 = y + pad + channelHeight * 3;
-          g.rect((float)pidx/npoints * w+1, y1, xw/region.pointCount, channelHeight);
+          g.fill(p1.r, p1.g, p1.b, 128);
+          g.rect((float)pidx/npoints * w+1, y1, xw/region.pointCount, channelHeight/2);
         }
         break;
       case Region.DWELL:
         if ((ppoints.get(region.startIndex)).isBlank()) {
-          g.stroke(255,255,255,96);
-          g.strokeWeight(1);
+          g.stroke(255,255,255,128);
           g.fill(0,0,0);
-          //g.noStroke();
-          y1 = y + pad + channelHeight * 0;
-          g.rect(x1, y1+1, xw, channelHeight-2);
+          y1 = y + pad + channelHeight * channelRankDwellBlank + 2;
+          g.rect(x1, y1+1, xw, channelHeight-3);
         }
         else {
           g.fill(region.col[0],region.col[1],region.col[2],192);
           g.noStroke();
-          y1 = y + pad + channelHeight * 1;
-          g.rect(x1, y1, xw, channelHeight);
+          y1 = y + pad + channelHeight * channelRankDwellColor + 3;
+          g.rect(x1, y1, xw, channelHeight - 3);
         }
         break;
     }
@@ -481,7 +478,7 @@ void drawRegions(int x, int y, int w, int h,
 }
 
 void renderGalvoPathImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PGraphics g) {
-  int vpad = 20;
+  int vpad = 10;
   int infoAreaHeight = 20;
   int regionAreaHeight = 50;
   int plotAreaMinY = regionAreaHeight+1;
@@ -500,7 +497,7 @@ void renderGalvoPathImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PGr
   g.beginDraw();
   g.background(0);
 
-  drawRegions(0, 0, (int)w-1, regionAreaHeight, ppoints, regions, g);
+  drawRegions(0,4, (int)w-1, regionAreaHeight, ppoints, regions, g);
 
   g.blendMode(ADD);
 
@@ -555,7 +552,8 @@ void renderGalvoPathImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PGr
       float x1 = (float)region.startIndex / npoints * w;
       float x2 = (float)region.endIndex / npoints * w;
       float xw = x2 - x1;
-      g.rect(x1, plotAreaMinY, xw, plotAreaHeight);
+      g.rect(x1, plotAreaMinY+vpad, xw, plotHeight);
+      g.rect(x1, plotAreaMinY+plotHeight+vpad*3, xw, plotHeight);
     }
   }
   g.noFill();
@@ -727,6 +725,17 @@ void keyTyped() {
   }
 }
 
+void keyPressed() {
+  switch(key) {
+    case 'j':
+      galvoPlotHeight -= 20;
+      break;
+    case 'k':
+      galvoPlotHeight += 20;
+        break;
+  }
+
+}
 
 void oscEvent(OscMessage message) {
   if (!oscEnabled) {

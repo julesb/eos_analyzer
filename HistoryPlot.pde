@@ -136,14 +136,15 @@ class HistoryPlot {
     // buffer average
     int bavgy  = (int)(y+h - bufferAvg/range*h);
 
+    // buffer avg to current avg delta
     if (ypos < bavgy) {
       stroke(255,0,0,255);
     }
     else {
-      stroke(64,64,255,255);
+      stroke(64,128,255,255);
     }
-    strokeWeight(4);
-    line(x+w-indicatorWidth+4, ypos, x+w-indicatorWidth+4, bavgy);
+    strokeWeight(6);
+    line(x+w-indicatorWidth+6, ypos, x+w-indicatorWidth+6, bavgy);
     //line(x+w-2, ypos, x+w-2, bavgy);
     
     strokeWeight(4);
