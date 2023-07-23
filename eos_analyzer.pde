@@ -226,11 +226,11 @@ void draw() {
 //   // TODO
 // }
 
-int findClosestPointIndex(float px, float py, ArrayList points) {
+int findClosestPointIndex(Point target, ArrayList points) {
   int npoints = points.size();
   float minDist = 999999.0;
   int minIndex = -1;
-  Point target = new Point(px, py);
+  //Point target = new Point(px, py);
 
   for(int i=0; i< npoints; i++) {
     Point p = (Point)points.get(i);
@@ -289,10 +289,9 @@ void updateCursors(int mx, int my, ArrayList<Point> points) {
     projScreenCursor.y = projCursorY; 
 
     float s = projectionCtxRect.w / 2;
-    int closestIndex = findClosestPointIndex(projCursorX / s * -1.0,
-                                             projCursorY / s,
-                                             points);
-    if (closestIndex > -1) {
+    Point cursorPoint = new Point(projCursorX / s * -1.0, projCursorY / s);
+    int closestIndex = findClosestPointIndex(cursorPoint, points);
+    if (closestIndex > -1 && cursorPoint.dist(points.get(closestIndex)) < 0.1) {
       selectedPointIndex = closestIndex;
       selectedPoint = points.get(selectedPointIndex);
     }
