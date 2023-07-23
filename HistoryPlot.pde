@@ -51,18 +51,18 @@ class HistoryPlot {
     int indicatorWidth = 50;
     int valueOffset = 120;
     int w2 = w - indicatorWidth;
-    stroke(255,255,255,64);
     strokeWeight(1);
-    fill(0, 0, 0, 192);
+    stroke(255,255,255,32);
+    fill(0, 0, 0);
     rect(x,y,w,h);
 
     fill(255,255,255,32);
-    rect(x+2,y+2, 100, 40);
+    rect(x+2,y+2, 102, 40);
 
     fill(255,255,255);
     textSize(32);
 
-    text(name, x+7, y+32);
+    text(name, x+8, y+32);
     textSize(50);
     if (this.numberFormat == "float") {
       text(String.format("%.2f %s", expMovingAvg, units), x+valueOffset, y+39);
