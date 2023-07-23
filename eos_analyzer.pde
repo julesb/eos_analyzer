@@ -138,10 +138,18 @@ void draw() {
   
   int mx = mouseX, my = mouseY; 
   updateCursors(mx, my, lpoints);
-  ArrayList<Region> regionsAtSelection = analyzer.getRegionsAtIndex(selectedPointIndex);
-  for (int i=0; i < regionsAtSelection.size(); i++) {
-    regionsAtSelection.get(i).selected = true;
+  ArrayList<Region> regionsAtSelection = analyzer.selectAndGetRegionsAtIndex(selectedPointIndex);
+
+
+  // Select points in selected region
+  for (int ridx = 0; ridx < regionsAtSelection.size(); ridx++) {
+    Region r = regionsAtSelection.get(ridx);
+    for(int pidx=r.startIndex; pidx <= r.endIndex; pidx++) {
+      lpoints.get(pidx).selected = true;
+    }
   }
+
+
   background(8);
   //camera();
 
@@ -215,28 +223,180 @@ void draw() {
                   width-projScreenRect.w-plotMargin*2, height-galvoPlotHeight-plotMargin*2+1,
                   plotRows, plotCols);
   
-  String infoText = getSelectionInfoText(regionsAtSelection);
-  fill(255);
-  noStroke();
-  textSize(30);
-  text(infoText, padding*2, padding*2);
+
+  if (selectedPoint != null && selectedPointIndex >= 0) {
+    drawSelectionInfoPanel(mx, my, 280, 180, lpoints, regionsAtSelection);
+  }
+  // String infoText = getSelectionInfoText(regionsAtSelection);
+  // fill(255);
+  // noStroke();
+  // textSize(30);
+  // text(infoText, padding*2, padding*2);
 
   prevFrameFinalPoint = lpoints.get(npoints-1);
 }
 
 
-// void drawSelectionInfoPanel(int x, int y, ) {
-//   // TODO
-// }
+void drawSelectionInfoPanel(int x, int y, int w, int h, ArrayList<Point> points, ArrayList<Region> regionsAtSelection) {
+  int rowHeight = 28;
+  int cursorOffset = 50;
+  int colorw = 100;
+  int colorh = 100;
+  int margin = 10;
+  
+  int xpos = x + cursorOffset;
+  int ypos = y - h - cursorOffset;
+  int textOriginX = xpos + colorw + 6;
+  int textOriginY = ypos + margin + 18;
+  Boolean isPath = false;
+  Boolean isBlank = false;
+  Boolean isDwell = false;
+  int pathLength = 0;
+  int blankLength = 0;
+  int dwellLength = 0;
 
-int findClosestPointIndex(Point target, ArrayList points) {
+  int textx = textOriginX, texty = textOriginY;
+
+  textSize(24);
+  stroke(255,255,255,64);
+  fill(0,0,0, 192);
+  strokeWeight(1);
+  rect(xpos, ypos, w, h);
+
+  if (selectedPoint == null || selectedPointIndex < 0) {
+    fill(255,128,128);
+    text("NO SELECTION", textOriginX, textOriginY);
+    return;
+  }
+  
+  for (int i=0; i<regionsAtSelection.size(); i++) {
+    Region r = regionsAtSelection.get(i);
+    if (r.type == Region.PATH) {
+      isPath = true;
+      pathLength = r.pointCount;
+    }
+    if (r.type == Region.BLANK) {
+      isBlank = true;
+      blankLength = r.pointCount;
+    }
+    if (r.type == Region.DWELL){
+      isDwell = true;
+      dwellLength = r.pointCount;
+    }
+  }
+
+  // Color patch
+  fill(selectedPoint.r, selectedPoint.g, selectedPoint.b);
+  if (isBlank) {
+    stroke(255,255,255,64);
+    rect(xpos+margin, ypos+margin, colorw-2*margin, colorh-2*margin);
+    fill(255,255,255,64);
+    text ("BLANK", xpos+margin+6, ypos+margin+46);
+  }
+  else {
+    noStroke();
+    rect(xpos+margin, ypos+margin, colorw-2*margin, colorh-2*margin);
+  }
+
+  int rowCount = 0;
+  
+  noStroke();
+  fill(255,255,255,192);
+
+  String posStr = String.format("pos: %5d, %5d",
+    (int)(selectedPoint.x*2047), (int)(selectedPoint.y*2047));
+  texty = textOriginY + rowCount++ * rowHeight;
+  text(posStr, textx, texty);
+  
+  String colorStr = String.format("color: %02X%02X%02X",
+      (int)selectedPoint.r, (int)selectedPoint.g, (int)selectedPoint.b);
+  texty = textOriginY + rowCount++ * rowHeight;
+  text(colorStr, textx, texty);
+
+  String indexStr = String.format("index: %d", selectedPointIndex);
+  texty = textOriginY + rowCount++ * rowHeight;
+  text(indexStr, textx, texty);
+
+  // Separator
+  stroke(255,255,255,64);
+  strokeWeight(1);
+  line(xpos, ypos + colorh, xpos+w-1, ypos+colorh);
+
+  textOriginY = ypos + colorh + margin*3;
+  rowCount = 0;
+  
+  int buttonWidth = (w-margin*4) / 3;
+  int buttonHeight = 60;
+  stroke(255,255,255,64);
+  noFill();
+  
+  if (isPath || isDwell) {
+    stroke(255,255,255,192);
+    noFill();
+    rect(xpos+margin*1, ypos+colorh+margin, buttonWidth, buttonHeight);
+    fill(255,255,255,240);
+  }
+  else {
+    stroke(255,255,255,64);
+    noFill();
+    rect(xpos+margin*1, ypos+colorh+margin, buttonWidth, buttonHeight);
+    fill(255,255,255,64);
+  }
+  textx = xpos+margin*2;
+  texty = textOriginY+3; // + rowCount * rowHeight;
+  text("draw", textx, texty);
+  String drawStr = (isPath || isDwell)? String.format("%d", pathLength) : "-";
+  texty += rowHeight;
+  text(drawStr, textx, texty);
+
+  if (isBlank && !isDwell) {
+    stroke(255,255,255,192);
+    noFill();
+    rect(xpos+margin*2+buttonWidth, ypos+colorh+margin, buttonWidth, buttonHeight);
+    fill(255,255,255,240);
+  }
+  else {
+    stroke(255,255,255,64);
+    noFill();
+    rect(xpos+margin*2+buttonWidth, ypos+colorh+margin, buttonWidth, buttonHeight);
+    fill(255,255,255,64);
+  }
+  textx = xpos+margin*3+buttonWidth*1;
+  texty = textOriginY+3; // + rowCount * rowHeight;
+  text("blank", textx, texty);
+  String blankStr = (isBlank && !isDwell)? String.format("%d", blankLength) : "-";
+  texty += rowHeight;
+  text(blankStr, textx, texty);
+  
+  if (isDwell) {
+    stroke(255,255,255,192);
+    noFill();
+    rect(xpos+margin*3+buttonWidth*2, ypos+colorh+margin, buttonWidth, buttonHeight);
+    fill(255,255,255,240);
+  }
+  else {
+    stroke(255,255,255,64);
+    noFill();
+    rect(xpos+margin*3+buttonWidth*2, ypos+colorh+margin, buttonWidth, buttonHeight);
+    fill(255,255,255,64);
+  }
+  textx = xpos+margin*4+buttonWidth*2;
+  texty = textOriginY+3; // + rowCount * rowHeight;
+  text("dwell", textx, texty);
+  String dwellStr = (isDwell)? String.format("%d", dwellLength) : "-";
+  texty += rowHeight;
+  text(dwellStr, textx, texty);
+}
+
+
+int findClosestPointIndex(Point target, ArrayList<Point> points) {
   int npoints = points.size();
   float minDist = 999999.0;
   int minIndex = -1;
   //Point target = new Point(px, py);
 
   for(int i=0; i< npoints; i++) {
-    Point p = (Point)points.get(i);
+    Point p = points.get(i);
     float d = target.distSqr(p);
     if (d < minDist) {
       minDist = d;
@@ -248,7 +408,7 @@ int findClosestPointIndex(Point target, ArrayList points) {
 
 
 String getSelectionInfoText(ArrayList<Region> regionsAtSelection) {
-  if (selectedPoint == null | selectedPointIndex < 0) {
+  if (selectedPoint == null || selectedPointIndex < 0) {
     return "NO SELECTION";
   }
 
@@ -576,7 +736,7 @@ void renderGalvoPathImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PGr
   // X galvo plot
   g.beginShape();
   for (int i = 0; i < w; i++) {
-    int pidx = (int)((i / w) * npoints);    
+    int pidx = (int)((i / w) * npoints);
     Point p = ppoints.get(pidx);
     float ypos = xplotCenterY + p.x * plotHeight/2;
     if (p.isBlank()) {
@@ -661,7 +821,12 @@ void renderProjectionImg(ArrayList ppoints, PGraphics g) {
       }
     }
     else {
-      g.strokeWeight(4);
+      if (p1.selected) {
+        g.strokeWeight(8);
+      }
+      else {
+        g.strokeWeight(4);
+      }
       g.stroke(p1.r, p1.g, p1.b, 128);
     }
 
@@ -810,6 +975,7 @@ int unpackUInt8(byte[] bytes, int offset) {
 class Point {
   public float x, y, r, g, b;
   public PointInfo info;
+  public Boolean selected = false;
 
   Point(float _x, float _y, float _r, float _g, float _b) {
     this.x = _x;

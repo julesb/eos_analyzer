@@ -101,6 +101,14 @@ class FrameAnalyzer {
     }
     return regionsAtIndex;
   }
+
+  ArrayList<Region> selectAndGetRegionsAtIndex(int index) {
+    ArrayList<Region> regionsAtSelection = analyzer.getRegionsAtIndex(index);
+    for (int i=0; i < regionsAtSelection.size(); i++) {
+      regionsAtSelection.get(i).selected = true;
+    }
+    return regionsAtSelection;
+  }
 }
 
 class Region {
