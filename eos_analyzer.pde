@@ -225,7 +225,16 @@ void draw() {
   
 
   if (selectedPoint != null && selectedPointIndex >= 0) {
-    drawSelectionInfoPanel(mx, my, 280, 180, lpoints, regionsAtSelection);
+    int panelx = (int)(projScreenRect.x + projScreenRect.w/2
+               + selectedPoint.x*-projScreenRect.w/2);
+    int panely = (int)(projScreenRect.y + projScreenRect.w/2
+               + selectedPoint.y*projScreenRect.h/2);
+
+    panelx = min(panelx, projScreenRect.x+projScreenRect.w-340);
+    panely = max(panely, projScreenRect.y+240);
+
+    //ellipse(selectedPoint.x*-width/2, selectedPoint.y*width/2, 25, 25);
+    drawSelectionInfoPanel(panelx, panely, 280, 180, lpoints, regionsAtSelection);
   }
   // String infoText = getSelectionInfoText(regionsAtSelection);
   // fill(255);
@@ -259,7 +268,7 @@ void drawSelectionInfoPanel(int x, int y, int w, int h, ArrayList<Point> points,
 
   textSize(24);
   stroke(255,255,255,64);
-  fill(0,0,0, 192);
+  fill(0,0,0, 240);
   strokeWeight(1);
   rect(xpos, ypos, w, h);
 
@@ -304,7 +313,7 @@ void drawSelectionInfoPanel(int x, int y, int w, int h, ArrayList<Point> points,
   fill(255,255,255,192);
 
   String posStr = String.format("pos: %5d, %5d",
-    (int)(selectedPoint.x*2047), (int)(selectedPoint.y*2047));
+    (int)(selectedPoint.x*-2047), (int)(selectedPoint.y*-2047));
   texty = textOriginY + rowCount++ * rowHeight;
   text(posStr, textx, texty);
   
@@ -427,7 +436,8 @@ void updateCursors(int mx, int my, ArrayList<Point> points) {
   if (galvoPlotScreenRect.containPoint(mx, my)) {
     galvoPlotCursorX = (float)(mx - galvoPlotScreenRect.x)
                        / galvoPlotScreenRect.w
-                       * pointsHistory.expMovingAvg;
+                       * points.size();
+                       //* pointsHistory.expMovingAvg;
 
     selectedPointIndex = (int)galvoPlotCursorX;
     if (selectedPointIndex < points.size()) {
@@ -499,6 +509,9 @@ float[] getPathStats(ArrayList<Point> points) {
     float[] dists = new float[3]; 
     int npoints = points.size();
 
+    // include the distance from the final point in the previous frame to the
+    // first point in the current frame when calculating the max distance 
+    // between points in the frame
     if (prevFrameFinalPoint != null && npoints > 0) {
       float d = prevFrameFinalPoint.dist(points.get(0));
       if (d > maxDist) {
@@ -598,7 +611,7 @@ void drawRegions(int x, int y, int w, int h,
   for (int ridx=0; ridx < nregions; ridx++) {
     Region region = regions.get(ridx);
     float x1 = (float)region.startIndex / npoints * w;
-    float x2 = (float)region.endIndex / npoints * w;
+    float x2 = (float)(1+region.endIndex) / npoints * w;
     float xw = x2 - x1;
     switch(region.type) {
       case Region.BLANK:
@@ -615,7 +628,7 @@ void drawRegions(int x, int y, int w, int h,
         //g.rect(x1, y1, xw, channelHeight/2);
         for (int pidx=region.startIndex; pidx <= region.endIndex; pidx++) {
           Point p1 = ppoints.get(pidx);
-          g.fill(p1.r, p1.g, p1.b, 128);
+          g.fill(p1.r, p1.g, p1.b, 160);
           g.rect((float)pidx/npoints * w+1, y1, xw/region.pointCount, channelHeight/2);
         }
         break;
@@ -705,6 +718,7 @@ void renderGalvoPathImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PGr
   //g.strokeWeight(1);
   //g.stroke(255,255,255,32);
 
+
   // Path region highlight
   g.noStroke();
   g.fill(255,255,255,8);
@@ -712,7 +726,7 @@ void renderGalvoPathImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PGr
     Region region = regions.get(ridx);
     if (region.type == Region.PATH || region.type == Region.BLANK) {
       float x1 = (float)region.startIndex / npoints * w;
-      float x2 = (float)region.endIndex / npoints * w;
+      float x2 = (float)(1+region.endIndex) / npoints * w;
       float xw = x2 - x1;
       if (region.selected) {
         if (region.type == Region.PATH) {
@@ -732,7 +746,8 @@ void renderGalvoPathImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PGr
     }
   }
   g.noFill();
-
+  
+  g.blendMode(REPLACE);
   // X galvo plot
   g.beginShape();
   for (int i = 0; i < w; i++) {
@@ -744,8 +759,8 @@ void renderGalvoPathImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PGr
       g.stroke(255, 255, 255, 96);
     }
     else {
-      g.strokeWeight(2);
-      g.stroke(p.r, p.g, p.b);
+      g.strokeWeight(3);
+      g.stroke(p.r, p.g, p.b, 255);
     }
     g.vertex(i, ypos);
   }
@@ -762,8 +777,8 @@ void renderGalvoPathImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PGr
       g.stroke(255, 255, 255, 96);
     }
     else {
-      g.strokeWeight(2);
-      g.stroke(p.r, p.g, p.b);
+      g.strokeWeight(3);
+      g.stroke(p.r, p.g, p.b, 255);
     }
     g.vertex(i, ypos);
   }
@@ -822,10 +837,10 @@ void renderProjectionImg(ArrayList ppoints, PGraphics g) {
     }
     else {
       if (p1.selected) {
-        g.strokeWeight(8);
+        g.strokeWeight(5);
       }
       else {
-        g.strokeWeight(4);
+        g.strokeWeight(3);
       }
       g.stroke(p1.r, p1.g, p1.b, 128);
     }
