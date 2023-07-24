@@ -66,7 +66,7 @@ class FrameAnalyzer {
           && i < npoints-1 && pNext.identical(p)) ) {
         dwellStartIndex = i;
       }
-      if (i>0
+      if (i > 0 && i > dwellStartIndex
           && dwellStartIndex>=0
           && pPrev.identical(p)
           && (i >= npoints-1 || !pNext.identical(p))) {
@@ -129,7 +129,7 @@ class Region {
     this.type = type;
     this.startIndex = startIdx;
     this.endIndex = endIdx;
-    this.pointCount = endIdx - startIdx;
+    this.pointCount = 1 + endIdx - startIdx;
   }
 
   public Boolean containsIndex(int i) {
