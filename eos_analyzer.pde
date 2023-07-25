@@ -19,9 +19,8 @@ import java.util.zip.DataFormatException;
     frame counter, receive indicator etc.
 
   - RENDERING REWORK:
-|   - Detect window resize. On window resize, we should resize all
-|     PGraphics contexts to be the actual displayed size so we get
-|     pixel perfect renders.
+|   - On window resize, we should resize all PGraphics contexts to
+|     be the actual displayed size so we get pixel perfect renders.
 |
 |   - Move galvo plot into its own class
 |
@@ -56,7 +55,8 @@ Point projScreenCursor = new Point(0,0);
 int galvoPlotHeight = 768;
 
 PGraphics galvoPlotCtx;
-final Rect galvoPlotCtxRect = new Rect(0, 0, 4096, 512);
+final Rect galvoPlotCtxRect = new Rect(0, 0, 3840, 768);
+//final Rect galvoPlotCtxRect = new Rect(0, 0, 4096, 512);
 Rect galvoPlotScreenRect = new Rect(0, 0, 1024, galvoPlotHeight);
 Boolean galvoPlotFitToWidth = true;
 
@@ -113,7 +113,7 @@ void updateScreenRects() {
 }
 
 void setup() {
-  size(2220, 2074, P3D);
+  size(2220, 2074, P2D);
   surface.setResizable(true);
   surface.setLocation(0, 40);
   textSize(24);
@@ -166,6 +166,13 @@ void draw() {
   if (updateFrameRate) {
     frameRate(targetFrameRate);
     updateFrameRate = false;
+  }
+  
+  if (!galvoPlotFitToWidth) {
+    galvoPlotScreenRect.w = width;
+    int desiredwidth = (int)(smoothPoints.expMovingAvg/4096.0*galvoPlotScreenRect.w*2);
+    int widthnew = min(desiredwidth, width);
+    galvoPlotScreenRect.set(0, height-galvoPlotHeight, widthnew, galvoPlotHeight);
   }
   
   ArrayList<Point> lpoints = new ArrayList(points);
@@ -624,7 +631,7 @@ void drawRegions(int x, int y, int w, int h,
   int pad = 1;
   float nchannels = 4;
   float channelPad = 1;
-  float channelHeight = (h - (channelPad * (0 + nchannels))) / nchannels;
+  float channelHeight = (h - (channelPad * (1 + nchannels))) / nchannels;
 
   int vpad = 10;
   int npaths = 0; 
@@ -671,14 +678,14 @@ void drawRegions(int x, int y, int w, int h,
         if ((ppoints.get(region.startIndex)).isBlank()) {
           g.stroke(255,255,255,128);
           g.fill(0,0,0);
-          y1 = y + pad + channelHeight * channelRankDwellBlank + 2;
-          g.rect(x1, y1+1, xw, channelHeight-3);
+          y1 = y + pad + channelHeight * channelRankDwellBlank + 3;
+          g.rect(x1, y1+1, xw, channelHeight-6);
         }
         else {
           g.fill(region.col[0],region.col[1],region.col[2],192);
           g.noStroke();
           y1 = y + pad + channelHeight * channelRankDwellColor + 3;
-          g.rect(x1, y1, xw, channelHeight - 3);
+          g.rect(x1, y1, xw, channelHeight - 6);
         }
         break;
     }
@@ -690,7 +697,7 @@ void drawRegions(int x, int y, int w, int h,
 void renderGalvoPathImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PGraphics g) {
   int vpad = 10;
   int infoAreaHeight = 20;
-  int regionAreaHeight = 50;
+  int regionAreaHeight = 80;
   int plotAreaMinY = regionAreaHeight+1;
   int plotAreaMaxY = g.height - infoAreaHeight -1;
   int plotAreaCenterY = (plotAreaMinY+plotAreaMaxY)/2;
