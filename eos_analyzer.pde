@@ -3,6 +3,35 @@ import netP5.*;
 import java.util.zip.Inflater;
 import java.util.zip.DataFormatException;
 
+/*
+  TODO:
+
+  - Highlight points where the distance to the next point exceeds
+    normal "safe" distance eg. 64su. Possibly in the regions view.
+
+  - Receiving / Snapshot mode indicator.
+
+  - Frame counter with "click to reset" action.
+
+  - Display app FPS, distinct from received FPS.
+
+  - Add a new layout panel to contain point info panel, app FPS,
+    frame counter, receive indicator etc.
+
+  - RENDERING REWORK:
+|   - Detect window resize. On window resize, we should resize all
+|     PGraphics contexts to be the actual displayed size so we get
+|     pixel perfect renders.
+|
+|   - Move galvo plot into its own class
+|
+|   - Rework galvo plot non-fit-to-width view, simply rescaling the
+|     image is a dirty hack.
+|
+|   - Galvo plot pan and zoom.
+
+
+*/
 
 OscP5 oscP5;
 OscProperties oscProps;
@@ -55,6 +84,15 @@ ArrayList<HistoryPlot> plots = new ArrayList();
 FrameAnalyzer analyzer;
 
 int padding = 20;
+
+
+int widthPrev, heightPrev;
+
+void windowResized() {
+  println("RESIZE: ", width, height);
+  updateScreenRects();
+}
+
 
 void updateScreenRects() {
   // Projection
@@ -130,9 +168,6 @@ void draw() {
     updateFrameRate = false;
   }
   
-  // TODO: only do this on resize
-  updateScreenRects();
-
   ArrayList<Point> lpoints = new ArrayList(points);
   ArrayList<Region> lregions = analyzer.getRegions(lpoints);
   
@@ -354,7 +389,7 @@ void drawSelectionInfoPanel(int x, int y, int w, int h, ArrayList<Point> points,
   textx = xpos+margin*2;
   texty = textOriginY+3; // + rowCount * rowHeight;
   text("draw", textx, texty);
-  String drawStr = (isPath || isDwell)? String.format("%d", pathLength) : "-";
+  String drawStr = (isPath || isDwell)? String.format("%d", pathLength) : "";
   texty += rowHeight;
   text(drawStr, textx, texty);
 
@@ -373,7 +408,7 @@ void drawSelectionInfoPanel(int x, int y, int w, int h, ArrayList<Point> points,
   textx = xpos+margin*3+buttonWidth*1;
   texty = textOriginY+3; // + rowCount * rowHeight;
   text("blank", textx, texty);
-  String blankStr = (isBlank && !isDwell)? String.format("%d", blankLength) : "-";
+  String blankStr = (isBlank && !isDwell)? String.format("%d", blankLength) : "";
   texty += rowHeight;
   text(blankStr, textx, texty);
   
@@ -392,7 +427,7 @@ void drawSelectionInfoPanel(int x, int y, int w, int h, ArrayList<Point> points,
   textx = xpos+margin*4+buttonWidth*2;
   texty = textOriginY+3; // + rowCount * rowHeight;
   text("dwell", textx, texty);
-  String dwellStr = (isDwell)? String.format("%d", dwellLength) : "-";
+  String dwellStr = (isDwell)? String.format("%d", dwellLength) : "";
   texty += rowHeight;
   text(dwellStr, textx, texty);
 }
