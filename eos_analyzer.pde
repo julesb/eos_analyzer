@@ -619,6 +619,7 @@ void checkMouse() {
 void mouseClicked() {
   if (mouseY > height - galvoPlotHeight) {
     galvoPlotFitToWidth = !galvoPlotFitToWidth;
+    updateScreenRects();
   }
   println("galvoPlotFitToWidth: ", galvoPlotFitToWidth);
 }
@@ -638,18 +639,24 @@ void drawRegions(int x, int y, int w, int h,
   float y1;
 
   final int channelRankDwellBlank = 0;
-  final int channelRankDwellColor = 1;
-  final int channelRankBlank      = 2;
+  final int channelRankDwellColor = 2;
+  final int channelRankBlank      = 1;
   final int channelRankPath       = 3;
 
 
   g.blendMode(REPLACE);
 
   g.strokeWeight(1);
-  g.noStroke();
+  //g.noStroke();
   //g.fill(255,255,255,8);
   //g.rect(x, y, w-1, h-1);
 
+  g.stroke(255,255,255,16);
+  for (int i=0; i < 5; i++) {
+    int yline = (int) (y + pad + i * channelHeight);
+    g.line(0, yline, g.width, yline);
+  }
+  
   for (int ridx=0; ridx < nregions; ridx++) {
     Region region = regions.get(ridx);
     float x1 = (float)region.startIndex / npoints * w;
@@ -657,16 +664,16 @@ void drawRegions(int x, int y, int w, int h,
     float xw = x2 - x1;
     switch(region.type) {
       case Region.BLANK:
+        y1 = y + pad + channelHeight/4 + channelHeight * channelRankBlank;
         g.stroke(255,255,255,96);
         g.fill(0,0,0, 255);
-        y1 = y + pad + channelHeight * channelRankBlank;
-        g.rect((int)x1, (int)y1+channelHeight/4, (int)xw, (int)channelHeight/2);
+        g.rect((int)x1, (int)y1, (int)xw, (int)channelHeight/2);
         break;
       case Region.PATH:
         npaths++;
+        y1 = y + pad + channelHeight/4 + channelHeight * channelRankPath;
         g.noStroke();
         g.fill(255,255,255,32);
-        y1 = y + pad + channelHeight * channelRankPath;
         //g.rect(x1, y1, xw, channelHeight/2);
         for (int pidx=region.startIndex; pidx <= region.endIndex; pidx++) {
           Point p1 = ppoints.get(pidx);
@@ -676,15 +683,15 @@ void drawRegions(int x, int y, int w, int h,
         break;
       case Region.DWELL:
         if ((ppoints.get(region.startIndex)).isBlank()) {
+          y1 = y + pad + channelHeight * channelRankDwellBlank + 2;
           g.stroke(255,255,255,128);
           g.fill(0,0,0);
-          y1 = y + pad + channelHeight * channelRankDwellBlank + 3;
-          g.rect(x1, y1+1, xw, channelHeight-6);
+          g.rect(x1, y1, xw, channelHeight-6);
         }
         else {
+          y1 = y + pad + channelHeight * channelRankDwellColor + 2;
           g.fill(region.col[0],region.col[1],region.col[2],192);
           g.noStroke();
-          y1 = y + pad + channelHeight * channelRankDwellColor + 3;
           g.rect(x1, y1, xw, channelHeight - 6);
         }
         break;
