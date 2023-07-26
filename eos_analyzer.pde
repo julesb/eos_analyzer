@@ -9,20 +9,21 @@ import java.util.zip.DataFormatException;
   - Highlight points where the distance to the next point exceeds
     normal "safe" distance eg. 64su. Possibly in the regions view.
 
-  - Receiving / Snapshot mode indicator.
-
-  - Frame counter with "click to reset" action.
-
-  - Display app FPS, distinct from received FPS.
+  - Draw a little arrow to show travel direction on the frame start
+    indicator in projection view.
 
   - Add a new layout panel to contain point info panel, app FPS,
     frame counter, receive indicator etc.
+    - Receiving / Snapshot mode indicator.
+    - Frame counter with "click to reset" action.
+    - Display app FPS, distinct from network FPS.
+
+  - Create a visualization for each point of the direction change angle
+    to reach the next point. Map angle (0 - 180deg) => Color intensity.
 
   - RENDERING REWORK:
 |   - On window resize, we should resize all PGraphics contexts to
 |     be the actual displayed size so we get pixel perfect renders.
-|
-|   - Move galvo plot into its own class
 |
 |   - Rework galvo plot non-fit-to-width view, simply rescaling the
 |     image is a dirty hack.
@@ -54,9 +55,8 @@ Point projScreenCursor = new Point(0,0);
 
 int galvoPlotHeight = 768;
 
-PGraphics galvoPlotCtx;
-final Rect galvoPlotCtxRect = new Rect(0, 0, 3840, 768);
-//final Rect galvoPlotCtxRect = new Rect(0, 0, 4096, 512);
+GalvoPlot galvoPlot;
+final Rect galvoPlotCtxRect = new Rect(0, 0, 3840, 768); // only w and h are used
 Rect galvoPlotScreenRect = new Rect(0, 0, 1024, galvoPlotHeight);
 Boolean galvoPlotFitToWidth = true;
 
@@ -120,7 +120,7 @@ void setup() {
   frameRate(480);
 
   projectionCtx = createGraphics(projectionCtxRect.w, projectionCtxRect.h, P2D);
-  galvoPlotCtx = createGraphics(galvoPlotCtxRect.w, galvoPlotCtxRect.h, P2D);
+  galvoPlot = new GalvoPlot(galvoPlotCtxRect.w, galvoPlotCtxRect.h);
   
   oscProps = new OscProperties();
   oscProps.setDatagramSize(65535);
@@ -198,7 +198,7 @@ void draw() {
 
   if (frameDirty || snapshotModeEnabled) {
     renderProjectionImg(lpoints, projectionCtx);
-    renderGalvoPathImg(lpoints, lregions, galvoPlotCtx);
+    galvoPlot.render(lpoints, lregions, selectedPointIndex);
     frameDirty = false;
   }
 
@@ -209,7 +209,7 @@ void draw() {
         projScreenRect.w,
         projScreenRect.h);
   
-  // Draw black background for galvo plot
+  // Draw black background for galvo plot area
   noStroke();
   fill(0);
   rect(galvoPlotScreenRect.x,
@@ -218,11 +218,10 @@ void draw() {
        galvoPlotScreenRect.h);
     
   // Draw galvo plot image
-  image(galvoPlotCtx,
-        galvoPlotScreenRect.x,
-        galvoPlotScreenRect.y,
-        galvoPlotScreenRect.w,
-        galvoPlotScreenRect.h);
+  galvoPlot.draw(galvoPlotScreenRect.x,
+                 galvoPlotScreenRect.y,
+                 galvoPlotScreenRect.w,
+                 galvoPlotScreenRect.h);
 
   checkMouse();
 
@@ -622,234 +621,6 @@ void mouseClicked() {
     updateScreenRects();
   }
   println("galvoPlotFitToWidth: ", galvoPlotFitToWidth);
-}
-
-
-void drawRegions(int x, int y, int w, int h, 
-    ArrayList<Point> ppoints, ArrayList<Region> regions, PGraphics g) {
-  int npoints = ppoints.size();
-  int nregions = regions.size();
-  int pad = 1;
-  float nchannels = 4;
-  float channelPad = 1;
-  float channelHeight = (h - (channelPad * (1 + nchannels))) / nchannels;
-
-  int vpad = 10;
-  int npaths = 0; 
-  float y1;
-
-  final int channelRankDwellBlank = 0;
-  final int channelRankDwellColor = 2;
-  final int channelRankBlank      = 1;
-  final int channelRankPath       = 3;
-
-
-  g.blendMode(REPLACE);
-
-  g.strokeWeight(1);
-  //g.noStroke();
-  //g.fill(255,255,255,8);
-  //g.rect(x, y, w-1, h-1);
-
-  g.stroke(255,255,255,16);
-  for (int i=0; i < 5; i++) {
-    int yline = (int) (y + pad + i * channelHeight);
-    g.line(0, yline, g.width, yline);
-  }
-  
-  for (int ridx=0; ridx < nregions; ridx++) {
-    Region region = regions.get(ridx);
-    float x1 = (float)region.startIndex / npoints * w;
-    float x2 = (float)(1+region.endIndex) / npoints * w;
-    float xw = x2 - x1;
-    switch(region.type) {
-      case Region.BLANK:
-        y1 = y + pad + channelHeight/4 + channelHeight * channelRankBlank;
-        g.stroke(255,255,255,96);
-        g.fill(0,0,0, 255);
-        g.rect((int)x1, (int)y1, (int)xw, (int)channelHeight/2);
-        break;
-      case Region.PATH:
-        npaths++;
-        y1 = y + pad + channelHeight/4 + channelHeight * channelRankPath;
-        g.noStroke();
-        g.fill(255,255,255,32);
-        //g.rect(x1, y1, xw, channelHeight/2);
-        for (int pidx=region.startIndex; pidx <= region.endIndex; pidx++) {
-          Point p1 = ppoints.get(pidx);
-          g.fill(p1.r, p1.g, p1.b, 160);
-          g.rect((float)pidx/npoints * w+1, y1, xw/region.pointCount, channelHeight/2);
-        }
-        break;
-      case Region.DWELL:
-        if ((ppoints.get(region.startIndex)).isBlank()) {
-          y1 = y + pad + channelHeight * channelRankDwellBlank + 2;
-          g.stroke(255,255,255,128);
-          g.fill(0,0,0);
-          g.rect(x1, y1, xw, channelHeight-6);
-        }
-        else {
-          y1 = y + pad + channelHeight * channelRankDwellColor + 2;
-          g.fill(region.col[0],region.col[1],region.col[2],192);
-          g.noStroke();
-          g.rect(x1, y1, xw, channelHeight - 6);
-        }
-        break;
-    }
-  }
-
-  pathsHistory.addValue(npaths);
-}
-
-void renderGalvoPathImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PGraphics g) {
-  int vpad = 10;
-  int infoAreaHeight = 20;
-  int regionAreaHeight = 80;
-  int plotAreaMinY = regionAreaHeight+1;
-  int plotAreaMaxY = g.height - infoAreaHeight -1;
-  int plotAreaCenterY = (plotAreaMinY+plotAreaMaxY)/2;
-  int plotAreaHeight = plotAreaMaxY - plotAreaMinY;
-  int plotHeight = plotAreaHeight/2 - vpad*2; // height of a single plot
-
-  int xplotCenterY = plotAreaMinY + vpad + plotHeight/2;
-  int yplotCenterY = plotAreaMaxY - vpad - plotHeight/2;
-
-  int npoints = ppoints.size();
-  int nregions = regions.size();
-  float w = g.width;
-  int h = g.height;
-  g.beginDraw();
-  g.background(0);
-
-  drawRegions(0,4, (int)w-1, regionAreaHeight, ppoints, regions, g);
-
-  g.blendMode(ADD);
-
-  //g.rect(0, vpad, g.width-1, g.height/2 - vpad);
-  //g.rect(0, g.height/2+vpad, g.width-1, g.height/2 - vpad*2);
-  //g.line(0, g.height/2, g.width, g.height/2);
-
-  g.noFill();
-
-  g.strokeWeight(1);
-
-  // Image border
-  // g.stroke(0, 255,0);
-  // g.rect(0, 0, g.width-1, g.height-1);
-
-  // Regions area lower border
-  // g.stroke(255, 255, 255, 32);
-  // g.line(0, regionAreaHeight-0, g.width-1, regionAreaHeight-0);
-
-  // Plot area vertical center
-  g.stroke(255, 255, 255, 32);
-  // g.line(0, plotAreaCenterY, g.width-1, plotAreaCenterY);
-
-  // Top border
-  g.line(0, 0,g.width-1, 0);
-
-  // Plot area min max
-  g.line(0, plotAreaMinY, g.width-1, plotAreaMinY);
-  g.line(0, plotAreaMaxY, g.width-1, plotAreaMaxY);
-
-  // Plot min max
-  g.stroke(255, 255, 255, 16);
-  g.line(0, plotAreaMinY + vpad, g.width-1, plotAreaMinY+vpad);
-  g.line(0, plotAreaCenterY - vpad, g.width-1, plotAreaCenterY - vpad);
-  g.line(0, plotAreaMaxY - vpad, g.width-1, plotAreaMaxY-vpad);
-  g.line(0, plotAreaCenterY + vpad, g.width-1, plotAreaCenterY + vpad);
-
-  // Plot center lines
-  // g.stroke(255, 255, 0);
-  // g.line(0, xplotCenterY, g.width-1, xplotCenterY);
-  // g.line(0, yplotCenterY, g.width-1, yplotCenterY);
-  
-  //g.strokeWeight(1);
-  //g.stroke(255,255,255,32);
-
-
-  // Path region highlight
-  g.noStroke();
-  g.fill(255,255,255,8);
-  for (int ridx=0; ridx < nregions; ridx++) {
-    Region region = regions.get(ridx);
-    if (region.type == Region.PATH || region.type == Region.BLANK) {
-      float x1 = (float)region.startIndex / npoints * w;
-      float x2 = (float)(1+region.endIndex) / npoints * w;
-      float xw = x2 - x1;
-      if (region.selected) {
-        if (region.type == Region.PATH) {
-          g.fill(128, 128, 255, 32);
-        }
-        else {
-          g.fill(128, 128, 255, 24);
-        }
-      }
-      else {
-        g.fill(255,255,255,8);
-      }
-      if (region.type == Region.PATH || region.selected) {
-        g.rect(x1, plotAreaMinY+vpad, xw, plotHeight);
-        g.rect(x1, plotAreaMinY+plotHeight+vpad*3, xw, plotHeight);
-      }
-    }
-  }
-  g.noFill();
-  
-  g.blendMode(REPLACE);
-  // X galvo plot
-  g.beginShape();
-  for (int i = 0; i < w; i++) {
-    int pidx = (int)((i / w) * npoints);
-    Point p = ppoints.get(pidx);
-    float ypos = xplotCenterY + p.x * plotHeight/2;
-    if (p.isBlank()) {
-      g.strokeWeight(1);
-      g.stroke(255, 255, 255, 96);
-    }
-    else {
-      g.strokeWeight(3);
-      g.stroke(p.r, p.g, p.b, 255);
-    }
-    g.vertex(i, ypos);
-  }
-  g.endShape();
-  
-  // Y galvo plot
-  g.beginShape();
-  for (int i = 0; i < w; i++) {
-    int pidx = (int)((i / w) * npoints);    
-    Point p = ppoints.get(pidx);
-    float ypos = yplotCenterY + p.y * plotHeight/2;
-    if (p.isBlank()) {
-      g.strokeWeight(1);
-      g.stroke(255, 255, 255, 96);
-    }
-    else {
-      g.strokeWeight(3);
-      g.stroke(p.r, p.g, p.b, 255);
-    }
-    g.vertex(i, ypos);
-  }
-  g.endShape();
- 
-
-
-  // Highlight the selected point
-  if (selectedPointIndex >= 0 && selectedPointIndex < npoints-1) {
-    int cx = (int)(((float)selectedPointIndex / npoints) * w);
-    Point p1 = ppoints.get(selectedPointIndex);
-    g.stroke(192);
-    g.strokeWeight(2);
-    g.line(cx, vpad+2, cx, galvoPlotCtxRect.h-vpad-2);
-    //g.line(p1.x*-s, p1.y*s, p2.x*-s, p2.y*s );
-    //g.ellipse(p1.x*-s, p1.y*s, 25, 25);
-
-    // g.fill(255);
-    // g.textSize(36);
-    // g.text(selectedPointIndex, cx, g.height-vpad+2);
-  }
-  g.endDraw();
 }
 
 
