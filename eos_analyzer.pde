@@ -91,6 +91,7 @@ int widthPrev, heightPrev;
 void windowResized() {
   println("RESIZE: ", width, height);
   updateScreenRects();
+  galvoPlot.resizeCtx(galvoPlotScreenRect.w, galvoPlotScreenRect.h);
 }
 
 
@@ -618,6 +619,7 @@ void checkMouse() {
 void mouseClicked() {
   if (mouseY > height - galvoPlotHeight) {
     galvoPlotFitToWidth = !galvoPlotFitToWidth;
+    galvoPlot.fitToWidth = !galvoPlot.fitToWidth;
     updateScreenRects();
   }
   println("galvoPlotFitToWidth: ", galvoPlotFitToWidth);

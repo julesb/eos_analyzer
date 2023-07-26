@@ -5,7 +5,10 @@ class GalvoPlot {
   int ctxHeight;
   int regionAreaHeight = 80;
   int infoAreaHeight = 20;
+  int vpad= 10;
   int selectedPointIndex = 0;
+  Boolean fitToWidth = false;
+
 
   public GalvoPlot(int _ctxWidth, int _ctxHeight) {
     ctxWidth = _ctxWidth;
@@ -33,7 +36,6 @@ class GalvoPlot {
     float channelPad = 1;
     float channelHeight = (h - (channelPad * (1 + nchannels))) / nchannels;
 
-    int vpad = 10;
     int npaths = 0; 
     float y1;
 
@@ -41,7 +43,6 @@ class GalvoPlot {
     final int channelRankDwellColor = 2;
     final int channelRankBlank      = 1;
     final int channelRankPath       = 3;
-
 
     g.blendMode(REPLACE);
 
@@ -101,8 +102,7 @@ class GalvoPlot {
 
 
   void drawGalvoPlot(ArrayList<Point> points, ArrayList<Region> regions) {
-    int vpad = 10;
-    int plotAreaMinY = regionAreaHeight+1;
+    int plotAreaMinY = regionAreaHeight + infoAreaHeight + 1;
     int plotAreaMaxY = g.height - infoAreaHeight -1;
     int plotAreaCenterY = (plotAreaMinY+plotAreaMaxY)/2;
     int plotAreaHeight = plotAreaMaxY - plotAreaMinY;
