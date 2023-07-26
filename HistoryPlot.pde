@@ -205,13 +205,13 @@ class HistoryPlot {
 
     fill(255, 255, 255, 128);
     textSize(textsize);
-    text(String.format("% 4.0f%s", rangeMin, units), xpos, yMinPos);
-    text(String.format("% 4.0f%s", rangeMax, units), xpos, yMaxPos);
+    text(String.format("% 4.0f%s", rangeMin, ""), xpos, yMinPos);
+    text(String.format("% 4.0f%s", rangeMax, ""), xpos, yMaxPos);
     if (this.numberFormat == "float") {
-      text(String.format("% 4.1f%s", (rangeMax-rangeMin)/2, units), xpos, yCenterPos);
+      text(String.format("% 4.1f%s", (rangeMax-rangeMin)/2, ""), xpos, yCenterPos);
     }
     else {
-      text(String.format("% 4.0f%s", (rangeMax-rangeMin)/2, units), xpos, yCenterPos);
+      text(String.format("% 4.0f%s", (rangeMax-rangeMin)/2, ""), xpos, yCenterPos);
     }
   }
 }
