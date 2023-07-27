@@ -8,7 +8,7 @@ class GalvoPlot {
   int vpad= 10;
   int selectedPointIndex = 0;
   Boolean fitToWidth = false;
-
+  int scaledPlotWidth = 1;
 
   public GalvoPlot(int _ctxWidth, int _ctxHeight) {
     ctxWidth = _ctxWidth;
@@ -18,11 +18,18 @@ class GalvoPlot {
 
 
   public void render(ArrayList<Point> points, ArrayList<Region> regions,
-                     int selectedPointIndex) {
+                     int selectedPointIndex, float smoothPointCount) {
+    int w = g.width;
+    if (!fitToWidth) {
+      w = min(w, (int)(smoothPointCount/4096.0 * w *2));
+      //w = min(desiredwidth, width);
+    }
+    scaledPlotWidth = w;
+
     this.selectedPointIndex = selectedPointIndex;
     g.beginDraw();
-    drawGalvoPlot(points, regions);
-    drawRegions(0,4, g.width-1, regionAreaHeight, points, regions);
+    drawGalvoPlot(0, 0, scaledPlotWidth, g.height, points, regions);
+    drawRegions(0, 0, scaledPlotWidth, regionAreaHeight, points, regions);
     g.endDraw();
   }
 
@@ -51,7 +58,7 @@ class GalvoPlot {
     //g.fill(255,255,255,8);
     //g.rect(x, y, w-1, h-1);
 
-    g.stroke(255,255,255,16);
+    g.stroke(255,255,255,24);
     for (int i=0; i < 5; i++) {
       int yline = (int) (y + pad + i * channelHeight);
       g.line(0, yline, g.width, yline);
@@ -101,9 +108,10 @@ class GalvoPlot {
   }
 
 
-  void drawGalvoPlot(ArrayList<Point> points, ArrayList<Region> regions) {
-    int plotAreaMinY = regionAreaHeight + infoAreaHeight + 1;
-    int plotAreaMaxY = g.height - infoAreaHeight -1;
+  void drawGalvoPlot(int x, int y, int w, int h,
+                     ArrayList<Point> points, ArrayList<Region> regions) {
+    int plotAreaMinY = y + regionAreaHeight + infoAreaHeight + 1;
+    int plotAreaMaxY = y + h - infoAreaHeight -1;
     int plotAreaCenterY = (plotAreaMinY+plotAreaMaxY)/2;
     int plotAreaHeight = plotAreaMaxY - plotAreaMinY;
     int plotHeight = plotAreaHeight/2 - vpad*2; // height of a single plot
@@ -113,9 +121,7 @@ class GalvoPlot {
 
     int npoints = points.size();
     int nregions = regions.size();
-    float w = g.width;
-    int h = g.height;
-    //g.beginDraw();
+
     g.background(0);
 
     //drawRegions(0,4, (int)w-1, regionAreaHeight, points, regions);
@@ -143,18 +149,18 @@ class GalvoPlot {
     // g.line(0, plotAreaCenterY, g.width-1, plotAreaCenterY);
 
     // Top border
-    g.line(0, 0,g.width-1, 0);
+    g.line(x, y, w-1, y);
 
     // Plot area min max
-    g.line(0, plotAreaMinY, g.width-1, plotAreaMinY);
-    g.line(0, plotAreaMaxY, g.width-1, plotAreaMaxY);
+    g.line(x, plotAreaMinY, w-1, plotAreaMinY);
+    g.line(x, plotAreaMaxY, w-1, plotAreaMaxY);
 
     // Plot min max
     g.stroke(255, 255, 255, 16);
-    g.line(0, plotAreaMinY + vpad, g.width-1, plotAreaMinY+vpad);
-    g.line(0, plotAreaCenterY - vpad, g.width-1, plotAreaCenterY - vpad);
-    g.line(0, plotAreaMaxY - vpad, g.width-1, plotAreaMaxY-vpad);
-    g.line(0, plotAreaCenterY + vpad, g.width-1, plotAreaCenterY + vpad);
+    g.line(x, plotAreaMinY + vpad, w, plotAreaMinY+vpad);
+    g.line(x, plotAreaCenterY - vpad, w, plotAreaCenterY - vpad);
+    g.line(x, plotAreaMaxY - vpad, w, plotAreaMaxY-vpad);
+    g.line(x, plotAreaCenterY + vpad, w, plotAreaCenterY + vpad);
 
     // Plot center lines
     // g.stroke(255, 255, 0);
@@ -170,8 +176,8 @@ class GalvoPlot {
     for (int ridx=0; ridx < nregions; ridx++) {
       Region region = regions.get(ridx);
       if (region.type == Region.PATH || region.type == Region.BLANK) {
-        float x1 = (float)region.startIndex / npoints * w;
-        float x2 = (float)(1+region.endIndex) / npoints * w;
+        float x1 = x + (float)region.startIndex / npoints * w;
+        float x2 = x + (float)(1+region.endIndex) / npoints * w;
         float xw = x2 - x1;
         if (region.selected) {
           if (region.type == Region.PATH) {
@@ -196,7 +202,7 @@ class GalvoPlot {
     // X galvo plot
     g.beginShape();
     for (int i = 0; i < w; i++) {
-      int pidx = (int)((i / w) * npoints);
+      int pidx = (int)(((float)i / w) * npoints);
       Point p = points.get(pidx);
       float ypos = xplotCenterY + p.x * plotHeight/2;
       if (p.isBlank()) {
@@ -207,14 +213,14 @@ class GalvoPlot {
         g.strokeWeight(3);
         g.stroke(p.r, p.g, p.b, 255);
       }
-      g.vertex(i, ypos);
+      g.vertex(x+i, ypos);
     }
     g.endShape();
     
     // Y galvo plot
     g.beginShape();
     for (int i = 0; i < w; i++) {
-      int pidx = (int)((i / w) * npoints);    
+      int pidx = (int)(((float)i / w) * npoints);
       Point p = points.get(pidx);
       float ypos = yplotCenterY + p.y * plotHeight/2;
       if (p.isBlank()) {
@@ -225,19 +231,18 @@ class GalvoPlot {
         g.strokeWeight(3);
         g.stroke(p.r, p.g, p.b, 255);
       }
-      g.vertex(i, ypos);
+      g.vertex(x+i, ypos);
     }
     g.endShape();
    
     // // Highlight the selected point
     if (selectedPointIndex >= 0 && selectedPointIndex < npoints-1) {
-      int cx = (int)(((float)selectedPointIndex / npoints) * w);
+      int cx = x + (int)(((float)selectedPointIndex / npoints) * w);
       Point p1 = points.get(selectedPointIndex);
       g.stroke(192);
       g.strokeWeight(2);
-      g.line(cx, vpad+2, cx, g.height-vpad-2);
+      g.line(cx, y+vpad+2, cx, h - vpad-2);
     }
-    //g.endDraw();
   }
 
 

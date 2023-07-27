@@ -20,16 +20,30 @@ import java.util.zip.DataFormatException;
 
   - Create a visualization for each point of the direction change angle
     to reach the next point. Map angle (0 - 180deg) => Color intensity.
+    
+  - Create a basic layout framework for more dynamic and flexible
+    layouts.
+    Idea: Introduce a concept of "primary view". At any time any of
+      the views could be set as primary. The primary view would
+          expand to take up as much space as possible, and the other
+          non-primary views would resize to accomodate.
+
+  - Allow history plot to collapse on click. Collapsed view just shows 
+    the name and current value but not the history plot.
 
   - RENDERING REWORK:
-|   - On window resize, we should resize all PGraphics contexts to
-|     be the actual displayed size so we get pixel perfect renders.
-|
-|   - Rework galvo plot non-fit-to-width view, simply rescaling the
-|     image is a dirty hack.
-|
-|   - Galvo plot pan and zoom.
+    
+    - Move projection view into its own class.
 
+    - On window resize, we should resize all PGraphics contexts to
+      be the actual displayed size so we get pixel perfect renders.
+ 
+    - Galvo plot pan and zoom.
+    
+    - Rework history plot drawing to use image region copy scrolling
+      instead of rendering each point on every frame - at least check
+      if that method is more efficient.
+    
 
 */
 
@@ -56,9 +70,8 @@ Point projScreenCursor = new Point(0,0);
 int galvoPlotHeight = 768;
 
 GalvoPlot galvoPlot;
-final Rect galvoPlotCtxRect = new Rect(0, 0, 3840, 768); // only w and h are used
+Rect galvoPlotCtxRect;
 Rect galvoPlotScreenRect = new Rect(0, 0, 1024, galvoPlotHeight);
-Boolean galvoPlotFitToWidth = true;
 
 // the mouse cursor, in galvo plot image space
 float galvoPlotCursorX = 0.0;
@@ -92,6 +105,7 @@ void windowResized() {
   println("RESIZE: ", width, height);
   updateScreenRects();
   galvoPlot.resizeCtx(galvoPlotScreenRect.w, galvoPlotScreenRect.h);
+
 }
 
 
@@ -101,16 +115,10 @@ void updateScreenRects() {
   projScreenRect.set(padding, padding, imagedim-2*padding, imagedim-2*padding);
 
   // Galvo plot
-  int widthnew;
-  if (galvoPlotFitToWidth) {
-    widthnew = width;
-  }
-  else {
-    galvoPlotScreenRect.w = width;
-    int desiredwidth = (int)(smoothPoints.expMovingAvg/4096.0*galvoPlotScreenRect.w*2);
-    widthnew = min(desiredwidth, width);
-  }
-  galvoPlotScreenRect.set(0, height-galvoPlotHeight, widthnew, galvoPlotHeight);
+  galvoPlotScreenRect.x = 0;
+  galvoPlotScreenRect.y = height - galvoPlotHeight;
+  galvoPlotScreenRect.w = width;
+  galvoPlotScreenRect.h = galvoPlotHeight;
 }
 
 void setup() {
@@ -119,7 +127,7 @@ void setup() {
   surface.setLocation(0, 40);
   textSize(24);
   frameRate(480);
-
+  galvoPlotCtxRect = new Rect(0, 0, width, galvoPlotHeight);
   projectionCtx = createGraphics(projectionCtxRect.w, projectionCtxRect.h, P2D);
   galvoPlot = new GalvoPlot(galvoPlotCtxRect.w, galvoPlotCtxRect.h);
   
@@ -169,13 +177,6 @@ void draw() {
     updateFrameRate = false;
   }
   
-  if (!galvoPlotFitToWidth) {
-    galvoPlotScreenRect.w = width;
-    int desiredwidth = (int)(smoothPoints.expMovingAvg/4096.0*galvoPlotScreenRect.w*2);
-    int widthnew = min(desiredwidth, width);
-    galvoPlotScreenRect.set(0, height-galvoPlotHeight, widthnew, galvoPlotHeight);
-  }
-  
   ArrayList<Point> lpoints = new ArrayList(points);
   ArrayList<Region> lregions = analyzer.getRegions(lpoints);
   
@@ -199,7 +200,7 @@ void draw() {
 
   if (frameDirty || snapshotModeEnabled) {
     renderProjectionImg(lpoints, projectionCtx);
-    galvoPlot.render(lpoints, lregions, selectedPointIndex);
+    galvoPlot.render(lpoints, lregions, selectedPointIndex, smoothPoints.expMovingAvg);
     frameDirty = false;
   }
 
@@ -477,13 +478,16 @@ void updateCursors(int mx, int my, ArrayList<Point> points) {
   // Update galvo plot cursor
   if (galvoPlotScreenRect.containPoint(mx, my)) {
     galvoPlotCursorX = (float)(mx - galvoPlotScreenRect.x)
-                       / galvoPlotScreenRect.w
+                       / galvoPlot.scaledPlotWidth
                        * points.size();
                        //* pointsHistory.expMovingAvg;
 
     selectedPointIndex = (int)galvoPlotCursorX;
     if (selectedPointIndex < points.size()) {
       selectedPoint = points.get(selectedPointIndex); 
+    }
+    else {
+      selectedPointIndex = -1;
     }
   }
   else {
@@ -601,7 +605,7 @@ void checkMouse() {
     textSize(24);
     int cx = (int)(((float)selectedPointIndex / pointsHistory.expMovingAvg)
     //int cx = (int)(((float)selectedPointIndex / smoothPoints.expMovingAvg)
-             * galvoPlotScreenRect.w);
+             * galvoPlot.scaledPlotWidth);
     text(selectedPointIndex, cx, galvoPlotScreenRect.y+galvoPlotScreenRect.h-8);
   }
 
@@ -618,11 +622,10 @@ void checkMouse() {
 
 void mouseClicked() {
   if (mouseY > height - galvoPlotHeight) {
-    galvoPlotFitToWidth = !galvoPlotFitToWidth;
     galvoPlot.fitToWidth = !galvoPlot.fitToWidth;
     updateScreenRects();
   }
-  println("galvoPlotFitToWidth: ", galvoPlotFitToWidth);
+  println("galvoPlot.fitToWidth: ", galvoPlot.fitToWidth);
 }
 
 
