@@ -124,7 +124,7 @@ class HistoryPlot {
     }
 
     // center line
-    stroke(255,255,255,32);
+    stroke(255,255,255,16);
     strokeWeight(1);
     line(x, y+h/2, x+w-indicatorWidth, y+h/2);
 

@@ -3,6 +3,7 @@ class GalvoPlot {
   PGraphics g;
   int ctxWidth;
   int ctxHeight;
+  Boolean ctxResizeLock = false;
   int regionAreaHeight = 80;
   int infoAreaHeight = 20;
   int vpad= 10;
@@ -19,17 +20,21 @@ class GalvoPlot {
 
   public void render(ArrayList<Point> points, ArrayList<Region> regions,
                      int selectedPointIndex, float smoothPointCount) {
-    int w = g.width;
+    if (ctxResizeLock) {
+      println("resize lock");
+      return;
+    }
+    int w = g.width-1;
     if (!fitToWidth) {
       w = min(w, (int)(smoothPointCount/4096.0 * w *2));
-      //w = min(desiredwidth, width);
     }
     scaledPlotWidth = w;
 
     this.selectedPointIndex = selectedPointIndex;
     g.beginDraw();
+    g.background(0);
+    drawRegions(0, vpad, scaledPlotWidth, regionAreaHeight, points, regions);
     drawGalvoPlot(0, 0, scaledPlotWidth, g.height, points, regions);
-    drawRegions(0, 0, scaledPlotWidth, regionAreaHeight, points, regions);
     g.endDraw();
   }
 
@@ -46,10 +51,10 @@ class GalvoPlot {
     int npaths = 0; 
     float y1;
 
-    final int channelRankDwellBlank = 0;
-    final int channelRankDwellColor = 2;
-    final int channelRankBlank      = 1;
-    final int channelRankPath       = 3;
+    final int channelRankDwellBlank = 3;
+    final int channelRankBlank      = 2;
+    final int channelRankDwellColor = 0;
+    final int channelRankPath       = 1;
 
     g.blendMode(REPLACE);
 
@@ -122,7 +127,6 @@ class GalvoPlot {
     int npoints = points.size();
     int nregions = regions.size();
 
-    g.background(0);
 
     //drawRegions(0,4, (int)w-1, regionAreaHeight, points, regions);
 
@@ -149,7 +153,7 @@ class GalvoPlot {
     // g.line(0, plotAreaCenterY, g.width-1, plotAreaCenterY);
 
     // Top border
-    g.line(x, y, w-1, y);
+    g.line(x, y, g.width-1, y);
 
     // Plot area min max
     g.line(x, plotAreaMinY, w-1, plotAreaMinY);
@@ -241,7 +245,7 @@ class GalvoPlot {
       Point p1 = points.get(selectedPointIndex);
       g.stroke(192);
       g.strokeWeight(2);
-      g.line(cx, y+vpad+2, cx, h - vpad-2);
+      g.line(cx, y+vpad+2, cx, h - vpad*2-2);
     }
   }
 
@@ -254,6 +258,8 @@ class GalvoPlot {
   public void resizeCtx(int w, int h) {
     ctxWidth = w;
     ctxHeight = h;
+    ctxResizeLock = true;
     g = createGraphics(w, h, P2D);
+    ctxResizeLock = false;
   }
 }
