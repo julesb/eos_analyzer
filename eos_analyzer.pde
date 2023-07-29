@@ -76,6 +76,9 @@ Rect galvoPlotScreenRect = new Rect(0, 0, 1024, galvoPlotHeight);
 // the mouse cursor, in galvo plot image space
 float galvoPlotCursorX = 0.0;
 
+int statusPanelWidth = 300;
+Rect statusPanelScreenRect; 
+
 Boolean frameDirty = true;
 ArrayList<Point> points;
 Point prevFrameFinalPoint;
@@ -119,6 +122,11 @@ void updateScreenRects() {
   galvoPlotScreenRect.y = height - galvoPlotHeight;
   galvoPlotScreenRect.w = width;
   galvoPlotScreenRect.h = galvoPlotHeight;
+
+  statusPanelScreenRect.x = projScreenRect.w+padding*2;
+  statusPanelScreenRect.y = padding;
+  statusPanelScreenRect.w = statusPanelWidth;
+  statusPanelScreenRect.h = height - galvoPlotScreenRect.h - 2*padding;
 }
 
 void setup() {
@@ -131,6 +139,11 @@ void setup() {
   projectionCtx = createGraphics(projectionCtxRect.w, projectionCtxRect.h, P2D);
   galvoPlot = new GalvoPlot(galvoPlotCtxRect.w, galvoPlotCtxRect.h);
   
+  statusPanelScreenRect = new Rect(projScreenRect.x,
+                                   0,
+                                   statusPanelWidth,
+                                   height-galvoPlotHeight);
+
   oscProps = new OscProperties();
   oscProps.setDatagramSize(65535);
   oscProps.setListeningPort(12000);
@@ -225,6 +238,12 @@ void draw() {
                  galvoPlotScreenRect.w,
                  galvoPlotScreenRect.h);
 
+  drawStatusPanel(statusPanelScreenRect.x,
+                  statusPanelScreenRect.y,
+                  statusPanelScreenRect.w,
+                  statusPanelScreenRect.h,
+                  lpoints, regionsAtSelection);
+
   checkMouse();
 
   // Update and draw history plots
@@ -262,23 +281,26 @@ void draw() {
     plotRows = 4;
     plotCols = 2;  
   }
-  drawPlotsLayout(projScreenRect.w+plotMargin*2, 1, //plotMargin/2,
-                  width-projScreenRect.w-plotMargin*2, height-galvoPlotHeight-plotMargin*2+1,
+  drawPlotsLayout(projScreenRect.w + statusPanelScreenRect.w+plotMargin*3,
+                  1,
+                  width-projScreenRect.w - statusPanelScreenRect.w -plotMargin*3,
+                  height-galvoPlotHeight-plotMargin*2+1,
                   plotRows, plotCols);
   
 
-  if (selectedPoint != null && selectedPointIndex >= 0) {
-    int panelx = (int)(projScreenRect.x + projScreenRect.w/2
-               + selectedPoint.x*-projScreenRect.w/2);
-    int panely = (int)(projScreenRect.y + projScreenRect.w/2
-               + selectedPoint.y*projScreenRect.h/2);
-
-    panelx = min(panelx, projScreenRect.x+projScreenRect.w-340);
-    panely = max(panely, projScreenRect.y+240);
-
-    //ellipse(selectedPoint.x*-width/2, selectedPoint.y*width/2, 25, 25);
-    drawSelectionInfoPanel(panelx, panely, 280, 180, lpoints, regionsAtSelection);
-  }
+  // if (selectedPoint != null && selectedPointIndex >= 0) {
+  //   int panelx = (int)(projScreenRect.x + projScreenRect.w/2
+  //              + selectedPoint.x*-projScreenRect.w/2);
+  //   int panely = (int)(projScreenRect.y + projScreenRect.w/2
+  //              + selectedPoint.y*projScreenRect.h/2);
+  //
+  //   panelx = min(panelx, projScreenRect.x+projScreenRect.w-340);
+  //   panely = max(panely, projScreenRect.y+240);
+  //
+  //   //ellipse(selectedPoint.x*-width/2, selectedPoint.y*width/2, 25, 25);
+  //   drawSelectionInfoPanel(panelx, panely, 280, 180, lpoints, regionsAtSelection);
+  // }
+  
   // String infoText = getSelectionInfoText(regionsAtSelection);
   // fill(255);
   // noStroke();
@@ -288,6 +310,33 @@ void draw() {
   prevFrameFinalPoint = lpoints.get(npoints-1);
 }
 
+void drawStatusPanel(int x, int y, int w, int h,
+             ArrayList<Point> points, ArrayList<Region> regionsAtSelection) {
+  int pad = 10;
+  
+  fill(0);
+  strokeWeight(1);
+  rect(x, y, w, h);
+
+  textSize(30);
+
+  String smtext;
+  if (snapshotModeEnabled) {
+    fill(255,255,255,32);
+    smtext = "RECEIVE";
+  }
+  else {
+    fill(16,255,32);
+    smtext = "RECEIVE";
+
+  }
+  text(smtext, x + pad, y + pad+30);
+
+
+  stroke(255,255,255,32);
+  drawSelectionInfoPanel(x+pad, y+h-180-pad, 280, 180, points, regionsAtSelection);
+} 
+
 
 void drawSelectionInfoPanel(int x, int y, int w, int h, ArrayList<Point> points, ArrayList<Region> regionsAtSelection) {
   int rowHeight = 28;
@@ -296,8 +345,8 @@ void drawSelectionInfoPanel(int x, int y, int w, int h, ArrayList<Point> points,
   int colorh = 100;
   int margin = 10;
   
-  int xpos = x + cursorOffset;
-  int ypos = y - h - cursorOffset;
+  int xpos = x;// + cursorOffset;
+  int ypos = y; // - h - cursorOffset;
   int textOriginX = xpos + colorw + 6;
   int textOriginY = ypos + margin + 18;
   Boolean isPath = false;
@@ -316,8 +365,10 @@ void drawSelectionInfoPanel(int x, int y, int w, int h, ArrayList<Point> points,
   rect(xpos, ypos, w, h);
 
   if (selectedPoint == null || selectedPointIndex < 0) {
-    fill(255,128,128);
-    text("NO SELECTION", textOriginX, textOriginY);
+    fill(255,255,255, 32);
+    String s = "NO SELECTION";
+    text(s, x+w/2-textWidth(s)/2, y+h/2);
+    //text("NO SELECTION", textOriginX, textOriginY);
     return;
   }
   
@@ -667,7 +718,7 @@ void renderProjectionImg(ArrayList ppoints, PGraphics g) {
       else {
         g.strokeWeight(3);
       }
-      g.stroke(p1.r, p1.g, p1.b, 128);
+      g.stroke(p1.r, p1.g, p1.b, 160);
     }
 
     if (p1.posEqual(p2)) {
@@ -749,10 +800,14 @@ void keyPressed() {
   switch(key) {
     case 'j':
       galvoPlotHeight -= 20;
+      updateScreenRects(); 
+      //galvoPlot.resizeCtx(galvoPlotScreenRect.w, galvoPlotScreenRect.h);
       break;
     case 'k':
       galvoPlotHeight += 20;
-        break;
+      updateScreenRects(); 
+      //galvoPlot.resizeCtx(galvoPlotScreenRect.w, galvoPlotScreenRect.h);
+      break;
   }
 
 }
