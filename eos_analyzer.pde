@@ -60,7 +60,6 @@ Boolean snapshotModeEnabled = false;
 Boolean showBlankLines = true;
 
 Point selectedPoint;
-int selectedPointIndex = -1;
 
 PGraphics projectionCtx;
 final Rect projectionCtxRect = new Rect(0, 0, 1024, 1024);
@@ -206,8 +205,7 @@ void draw() {
   
   int mx = mouseX, my = mouseY; 
   updateCursors(mx, my, lpoints);
-  ArrayList<Region> regionsAtSelection = analyzer.selectAndGetRegionsAtIndex(selectedPointIndex);
-
+  ArrayList<Region> regionsAtSelection = analyzer.selectAndGetRegionsAtIndex(galvoPlot.selectedPointIndex);
 
   // Select points in selected region
   for (int ridx = 0; ridx < regionsAtSelection.size(); ridx++) {
@@ -231,7 +229,7 @@ void draw() {
 
   if (frameDirty || snapshotModeEnabled) {
     renderProjectionImg(lpoints, lregions, projectionCtx);
-    galvoPlot.render(lpoints, lregions, selectedPointIndex, smoothPoints.expMovingAvg);
+    galvoPlot.render(lpoints, lregions, smoothPoints.expMovingAvg);
     frameDirty = false;
   }
 
@@ -243,12 +241,13 @@ void draw() {
         projScreenRect.h);
   
   // Draw black background for galvo plot area
-  noStroke();
-  fill(0);
-  rect(galvoPlotScreenRect.x,
-       galvoPlotScreenRect.y,
-       width,
-       galvoPlotScreenRect.h);
+  // noStroke();
+  // fill(0);
+  // rect(galvoPlotScreenRect.x,
+  //      galvoPlotScreenRect.y,
+  //      galvoPlot.scaledPlotWidth,
+  //      //width,
+  //      galvoPlotScreenRect.h);
     
   // Draw galvo plot image
   galvoPlot.draw(galvoPlotScreenRect.x,
@@ -354,7 +353,7 @@ void drawSelectionInfoPanel(int x, int y, int w, int h, ArrayList<Point> points,
   strokeWeight(1);
   rect(xpos, ypos, w, h);
 
-  if (selectedPoint == null || selectedPointIndex < 0) {
+  if (selectedPoint == null || galvoPlot.selectedPointIndex < 0) {
     fill(255,255,255, 32);
     String s = "NO SELECTION";
     text(s, x+w/2-textWidth(s)/2, y+h/2);
@@ -408,7 +407,7 @@ void drawSelectionInfoPanel(int x, int y, int w, int h, ArrayList<Point> points,
   texty = textOriginY + rowCount++ * rowHeight;
   text(colorStr, textx, texty);
 
-  String indexStr = String.format("index: %d", selectedPointIndex);
+  String indexStr = String.format("index: %d", galvoPlot.selectedPointIndex);
   texty = textOriginY + rowCount++ * rowHeight;
   text(indexStr, textx, texty);
 
@@ -502,39 +501,10 @@ int findClosestPointIndex(Point target, ArrayList<Point> points) {
 }
 
 
-String getSelectionInfoText(ArrayList<Region> regionsAtSelection) {
-  if (selectedPoint == null || selectedPointIndex < 0) {
-    return "NO SELECTION";
-  }
-
-  String info = String.format("[i: %d] [pos: %d, %d]",
-    selectedPointIndex, (int)(selectedPoint.x*2047), (int)(selectedPoint.y*2047));
-  for (int i=0; i<regionsAtSelection.size(); i++) {
-    Region r = regionsAtSelection.get(i);
-    info += String.format("[%s]", r.toString());
-  }
-  return info;
-}
-
-
 void updateCursors(int mx, int my, ArrayList<Point> points) {
   // Update galvo plot cursor
-  if (galvoPlotScreenRect.containsPoint(mx, my)) {
-    galvoPlotCursorX = (float)(mx - galvoPlotScreenRect.x)
-                       / galvoPlot.scaledPlotWidth
-                       * points.size();
-                       //* pointsHistory.expMovingAvg;
-    selectedPointIndex = (int)galvoPlotCursorX;
-    if (selectedPointIndex < points.size()) {
-      selectedPoint = points.get(selectedPointIndex); 
-    }
-    else {
-      selectedPointIndex = -1;
-    }
-  }
-  else {
-    selectedPointIndex = -1;
-  }
+  galvoPlot.updateCursor(mx, my, galvoPlotScreenRect, points);
+
   // Update projection cursor
   if(projScreenRect.containsPoint(mx, my)) {
     float projCursorX = (float)(mx - projScreenRect.x)
@@ -553,8 +523,8 @@ void updateCursors(int mx, int my, ArrayList<Point> points) {
     Point cursorPoint = new Point(projCursorX / s * -1.0, projCursorY / s);
     int closestIndex = findClosestPointIndex(cursorPoint, points);
     if (closestIndex > -1 && cursorPoint.dist(points.get(closestIndex)) < 0.25) {
-      selectedPointIndex = closestIndex;
-      selectedPoint = points.get(selectedPointIndex);
+      galvoPlot.setSelectedIndex(closestIndex, points);
+      selectedPoint = points.get(closestIndex);
     }
   }
 }
@@ -579,15 +549,16 @@ void drawPlotsLayout(int x, int y, int layoutWidth, int layoutHight, int rows, i
   }
 }
 
-void drawPlots(int x, int y, int plotWidth, int plotHeight, int plotMargin) {
-  int nplots = plots.size();
-  for (int i=0; i < nplots; i++) {
-    int xpos = x;
-    int ypos = y + plotMargin + i*plotHeight + i*plotMargin;
-    HistoryPlot p = plots.get(i);
-    p.draw(xpos, ypos, plotWidth, plotHeight);
-  }
-}
+// replaced by drawPlotsLayout
+// void drawPlots(int x, int y, int plotWidth, int plotHeight, int plotMargin) {
+//   int nplots = plots.size();
+//   for (int i=0; i < nplots; i++) {
+//     int xpos = x;
+//     int ypos = y + plotMargin + i*plotHeight + i*plotMargin;
+//     HistoryPlot p = plots.get(i);
+//     p.draw(xpos, ypos, plotWidth, plotHeight);
+//   }
+// }
 
 
 float[] getPathStats(ArrayList<Point> points) {
@@ -706,8 +677,7 @@ void renderProjectionImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PG
   }
   g.endShape();
 
-
-
+  // Draw dwell points
   for (int i=0; i<nregions; i++) {
     Region r = regions.get(i);
     if (r.type != Region.DWELL) {
@@ -715,20 +685,14 @@ void renderProjectionImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PG
     }
   
     Point p = ppoints.get(r.startIndex);
-     
     g.strokeWeight(10);
     g.stroke(p.r, p.g, p.b, 128);
     g.point(p.x*-s, p.y*s);
-
   }
 
-
-
-
   // Highlight the selected point
-  if (selectedPointIndex >= 0 && selectedPointIndex < npoints-1) {
-    Point p1 = (Point)ppoints.get(selectedPointIndex);
-    //Point p2 = (Point)ppoints.get(selectedPointIndex+1);
+  if (galvoPlot.selectedPointIndex >= 0 && galvoPlot.selectedPointIndex < npoints-1) {
+    Point p1 = (Point)ppoints.get(galvoPlot.selectedPointIndex);
     if (p1.isBlank()) {
       g.stroke(255,255,255,240);
       g.fill(0,0,0, 192);
@@ -812,6 +776,17 @@ void mouseClicked() {
   }
 }
 
+void mouseWheel(MouseEvent event) {
+  float e = event.getCount();
+  galvoPlot.zoomVelocity += e / 100;
+  println(e);
+}
+
+void mouseDragged() {
+  if (galvoPlotScreenRect.containsPoint(mouseX, mouseY)) {
+    galvoPlot.panX += mouseX - pmouseX;
+  }
+}
 
 void mouseReleased() {
   oscframesButton.mouseReleased();
