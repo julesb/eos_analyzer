@@ -52,8 +52,8 @@ class HistoryPlot {
     int valueOffset = 120;
     int w2 = w - indicatorWidth;
     strokeWeight(1);
-    stroke(255,255,255,32);
-    fill(0, 0, 0);
+    stroke(borderColor);
+    fill(8,255);
     rect(x,y,w,h);
 
     fill(255,255,255,32);
@@ -63,6 +63,9 @@ class HistoryPlot {
     textSize(32);
 
     text(name, x+8, y+32);
+
+    fill(255,255,255, 240);
+
     textSize(50);
     if (this.numberFormat == "float") {
       text(String.format("%.2f %s", expMovingAvg, units), x+valueOffset, y+39);
@@ -118,7 +121,7 @@ class HistoryPlot {
         stroke(255,0,0);
       }
       else {
-        stroke(255,255,255,192);
+        stroke(255,255,255,160);
       }
       point(xpos, ypos);
     }
