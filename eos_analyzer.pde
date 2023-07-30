@@ -66,9 +66,9 @@ PGraphics projectionCtx;
 final Rect projectionCtxRect = new Rect(0, 0, 1024, 1024);
 Rect projScreenRect = new Rect(0, 0, 1024, 1024);
 Point projScreenCursor = new Point(0,0);
+float projBeamIntensity = 1.0;
 
 int galvoPlotHeight = 768;
-
 GalvoPlot galvoPlot;
 Rect galvoPlotCtxRect;
 Rect galvoPlotScreenRect = new Rect(0, 0, 1024, galvoPlotHeight);
@@ -99,10 +99,18 @@ ArrayList<HistoryPlot> plots = new ArrayList();
 
 FrameAnalyzer analyzer;
 
+int oscFrameCount = 0;
+
 int padding = 20;
 
+int buttonWidth = 200;
+int buttonHeight = 40;
+Button receiveButton = new Button("Receive", 0, 0, buttonWidth, buttonHeight);
+Button oscframesButton = new Button("F: 000000", 0, 0, buttonWidth, buttonHeight);
 
 int widthPrev, heightPrev;
+
+color borderColor = color(255,255,255,32);
 
 void windowResized() {
   println("RESIZE: ", width, height);
@@ -175,6 +183,9 @@ void setup() {
   smoothPoints = new HistoryPlot("SmoothPoints", historyLength, 0, 4096, 20, "","");
 
   updateScreenRects();
+
+  receiveButton.isToggle = true;
+  receiveButton.state = !snapshotModeEnabled;
 }
 
 
@@ -206,13 +217,20 @@ void draw() {
     }
   }
 
+  if (receiveButton.clicked()) {
+    setSnapshotMode(!receiveButton.state);
+  }
+
+  if (oscframesButton.clicked()) {
+    oscFrameCount = 0;
+  }
 
   background(8);
   //camera();
 
 
   if (frameDirty || snapshotModeEnabled) {
-    renderProjectionImg(lpoints, projectionCtx);
+    renderProjectionImg(lpoints, lregions, projectionCtx);
     galvoPlot.render(lpoints, lregions, selectedPointIndex, smoothPoints.expMovingAvg);
     frameDirty = false;
   }
@@ -286,67 +304,39 @@ void draw() {
                   width-projScreenRect.w - statusPanelScreenRect.w -plotMargin*3,
                   height-galvoPlotHeight-plotMargin*2+1,
                   plotRows, plotCols);
-  
-
-  // if (selectedPoint != null && selectedPointIndex >= 0) {
-  //   int panelx = (int)(projScreenRect.x + projScreenRect.w/2
-  //              + selectedPoint.x*-projScreenRect.w/2);
-  //   int panely = (int)(projScreenRect.y + projScreenRect.w/2
-  //              + selectedPoint.y*projScreenRect.h/2);
-  //
-  //   panelx = min(panelx, projScreenRect.x+projScreenRect.w-340);
-  //   panely = max(panely, projScreenRect.y+240);
-  //
-  //   //ellipse(selectedPoint.x*-width/2, selectedPoint.y*width/2, 25, 25);
-  //   drawSelectionInfoPanel(panelx, panely, 280, 180, lpoints, regionsAtSelection);
-  // }
-  
-  // String infoText = getSelectionInfoText(regionsAtSelection);
-  // fill(255);
-  // noStroke();
-  // textSize(30);
-  // text(infoText, padding*2, padding*2);
 
   prevFrameFinalPoint = lpoints.get(npoints-1);
 }
 
+
 void drawStatusPanel(int x, int y, int w, int h,
              ArrayList<Point> points, ArrayList<Region> regionsAtSelection) {
   int pad = 10;
-  
+  int infoPanelHeight = 180;
   fill(0);
   strokeWeight(1);
+  stroke(borderColor);
   rect(x, y, w, h);
 
-  textSize(30);
+  receiveButton.draw(x+pad*2, y+pad*4 + buttonHeight);
 
-  String smtext;
-  if (snapshotModeEnabled) {
-    fill(255,255,255,32);
-    smtext = "RECEIVE";
-  }
-  else {
-    fill(16,255,32);
-    smtext = "RECEIVE";
+  oscframesButton.label = String.format("osc: %08d", oscFrameCount);
+  oscframesButton.draw(x+pad*2, y+pad*2);
 
-  }
-  text(smtext, x + pad, y + pad+30);
-
-
-  stroke(255,255,255,32);
-  drawSelectionInfoPanel(x+pad, y+h-180-pad, 280, 180, points, regionsAtSelection);
+  stroke(borderColor);
+  drawSelectionInfoPanel(x+pad, y+h-180-pad, 280, infoPanelHeight,
+                         points, regionsAtSelection);
 } 
 
 
 void drawSelectionInfoPanel(int x, int y, int w, int h, ArrayList<Point> points, ArrayList<Region> regionsAtSelection) {
   int rowHeight = 28;
-  int cursorOffset = 50;
   int colorw = 100;
   int colorh = 100;
   int margin = 10;
   
-  int xpos = x;// + cursorOffset;
-  int ypos = y; // - h - cursorOffset;
+  int xpos = x;
+  int ypos = y;
   int textOriginX = xpos + colorw + 6;
   int textOriginY = ypos + margin + 18;
   Boolean isPath = false;
@@ -359,7 +349,7 @@ void drawSelectionInfoPanel(int x, int y, int w, int h, ArrayList<Point> points,
   int textx = textOriginX, texty = textOriginY;
 
   textSize(24);
-  stroke(255,255,255,64);
+  stroke(255,255,255,32);
   fill(0,0,0, 240);
   strokeWeight(1);
   rect(xpos, ypos, w, h);
@@ -368,9 +358,11 @@ void drawSelectionInfoPanel(int x, int y, int w, int h, ArrayList<Point> points,
     fill(255,255,255, 32);
     String s = "NO SELECTION";
     text(s, x+w/2-textWidth(s)/2, y+h/2);
-    //text("NO SELECTION", textOriginX, textOriginY);
     return;
   }
+  
+  // stroke(255,255,255,64);
+  // rect(xpos, ypos, w, h);
   
   for (int i=0; i<regionsAtSelection.size(); i++) {
     Region r = regionsAtSelection.get(i);
@@ -527,12 +519,11 @@ String getSelectionInfoText(ArrayList<Region> regionsAtSelection) {
 
 void updateCursors(int mx, int my, ArrayList<Point> points) {
   // Update galvo plot cursor
-  if (galvoPlotScreenRect.containPoint(mx, my)) {
+  if (galvoPlotScreenRect.containsPoint(mx, my)) {
     galvoPlotCursorX = (float)(mx - galvoPlotScreenRect.x)
                        / galvoPlot.scaledPlotWidth
                        * points.size();
                        //* pointsHistory.expMovingAvg;
-
     selectedPointIndex = (int)galvoPlotCursorX;
     if (selectedPointIndex < points.size()) {
       selectedPoint = points.get(selectedPointIndex); 
@@ -545,7 +536,7 @@ void updateCursors(int mx, int my, ArrayList<Point> points) {
     selectedPointIndex = -1;
   }
   // Update projection cursor
-  if(projScreenRect.containPoint(mx, my)) {
+  if(projScreenRect.containsPoint(mx, my)) {
     float projCursorX = (float)(mx - projScreenRect.x)
                         / projScreenRect.w
                         * projectionCtxRect.w
@@ -642,7 +633,8 @@ float[] getPathStats(ArrayList<Point> points) {
 void checkMouse() {
   int mx = mouseX, my = mouseY;
 
-  // if (galvoPlotScreenRect.containPoint(mx, my)) {
+  // Highlight active view
+  // if (galvoPlotScreenRect.containsPoint(mx, my)) {
   //   stroke(0, 255, 0);
   //   strokeWeight(1);
   //   noFill();
@@ -650,18 +642,7 @@ void checkMouse() {
   //        galvoPlotScreenRect.w, galvoPlotScreenRect.h);
   // }
 
-
-  if (selectedPointIndex >= 0) {
-    fill(255);
-    textSize(24);
-    int cx = (int)(((float)selectedPointIndex / pointsHistory.expMovingAvg)
-    //int cx = (int)(((float)selectedPointIndex / smoothPoints.expMovingAvg)
-             * galvoPlot.scaledPlotWidth);
-    text(selectedPointIndex, cx, galvoPlotScreenRect.y+galvoPlotScreenRect.h-8);
-  }
-
-
-  // if (projScreenRect.containPoint(mx, my)) {
+  // if (projScreenRect.containsPoint(mx, my)) {
   //   stroke(0, 255, 0);
   //   strokeWeight(1);
   //   noFill();
@@ -671,17 +652,9 @@ void checkMouse() {
 }
 
 
-void mouseClicked() {
-  if (mouseY > height - galvoPlotHeight) {
-    galvoPlot.fitToWidth = !galvoPlot.fitToWidth;
-    updateScreenRects();
-  }
-  println("galvoPlot.fitToWidth: ", galvoPlot.fitToWidth);
-}
-
-
-void renderProjectionImg(ArrayList ppoints, PGraphics g) {
+void renderProjectionImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PGraphics g) {
   int npoints = ppoints.size();
+  int nregions = regions.size();
   float s = g.width / 2.0;
   g.beginDraw();
   g.background(0);
@@ -690,7 +663,7 @@ void renderProjectionImg(ArrayList ppoints, PGraphics g) {
   g.pushMatrix();
   g.translate(g.width/2, g.height/2); // assume 2D projection
   
-  g.stroke(255, 255, 255, 32);
+  g.stroke(borderColor);
   g.strokeWeight(1);
   g.square(-g.height/2, -g.height/2, g.height-1);
   g.beginShape(LINES);
@@ -716,9 +689,9 @@ void renderProjectionImg(ArrayList ppoints, PGraphics g) {
         g.strokeWeight(5);
       }
       else {
-        g.strokeWeight(3);
+        g.strokeWeight(5);
       }
-      g.stroke(p1.r, p1.g, p1.b, 160);
+      g.stroke(p1.r*projBeamIntensity, p1.g*projBeamIntensity, p1.b*projBeamIntensity, 240);
     }
 
     if (p1.posEqual(p2)) {
@@ -732,6 +705,25 @@ void renderProjectionImg(ArrayList ppoints, PGraphics g) {
 
   }
   g.endShape();
+
+
+
+  for (int i=0; i<nregions; i++) {
+    Region r = regions.get(i);
+    if (r.type != Region.DWELL) {
+      continue;
+    }
+  
+    Point p = ppoints.get(r.startIndex);
+     
+    g.strokeWeight(10);
+    g.stroke(p.r, p.g, p.b, 128);
+    g.point(p.x*-s, p.y*s);
+
+  }
+
+
+
 
   // Highlight the selected point
   if (selectedPointIndex >= 0 && selectedPointIndex < npoints-1) {
@@ -789,6 +781,7 @@ void keyTyped() {
   switch(key) {
     case ' ':
       setSnapshotMode(!snapshotModeEnabled);
+      receiveButton.state = (!snapshotModeEnabled);
       break;
     case 'b':
       showBlankLines = !showBlankLines;
@@ -809,7 +802,20 @@ void keyPressed() {
       //galvoPlot.resizeCtx(galvoPlotScreenRect.w, galvoPlotScreenRect.h);
       break;
   }
+}
 
+void mouseClicked() {
+  if (mouseY > height - galvoPlotHeight) {
+    galvoPlot.fitToWidth = !galvoPlot.fitToWidth;
+    updateScreenRects();
+    println("galvoPlot.fitToWidth: ", galvoPlot.fitToWidth);
+  }
+}
+
+
+void mouseReleased() {
+  oscframesButton.mouseReleased();
+  receiveButton.mouseReleased();
 }
 
 void oscEvent(OscMessage message) {
@@ -853,6 +859,7 @@ void oscEvent(OscMessage message) {
     }
     points = pointList;
     frameDirty = true;
+    oscFrameCount++;
     redraw();
   }
 }
@@ -865,6 +872,94 @@ int unpackUInt8(byte[] bytes, int offset) {
   return bytes[offset] & 0xFF;
 }
 
+
+class Button {
+  int x, y, w, h;
+  String label = "Button";
+  color borderColor = color(255,255,255,16);
+  color fillColor   = color(255,255,255,8);
+  //color textColor   = color(255,255,255, 192);
+  color textColor   = color(255,255,255,160);
+  //color onTextcolor = color(128,240,32,255);
+  color onTextcolor = color(192,238,1,255);
+  //color onTextcolor = color(57,255,20,255); // neon green
+  color hoverColor  = color(255,255,255,16);
+  color onFillcolor = color(255,255,255,16);
+  Boolean isToggle = false;
+  Boolean state = false;
+  Boolean wasClicked = false;
+
+  public Button() {
+    x = 0;
+    y = 0;
+    w = 150;
+    h = 50;
+  }
+
+  public Button(String _label, int _x, int _y, int _w, int _h) {
+    label = _label;
+    x = _x;
+    y = _y;
+    w = _w;
+    h = _h;
+  }
+
+
+  public void draw(int _x, int _y) {
+    x=_x;
+    y=_y;
+    draw();
+  }
+
+  public void draw() {
+    stroke(borderColor);
+    if  ((mouseX<x) || (mouseX>x+w) || (mouseY<y) || (mouseY>y+h)) {
+      if (state) {
+        fill(onFillcolor);
+      }
+      else {
+        fill(fillColor);
+      }
+    }
+    else {
+      fill(hoverColor);
+    }
+    rect(x, y, w, h, 10);
+
+    if (state) {
+      fill(onTextcolor);
+    }
+    else {
+      fill(textColor);
+    }
+    textSize(30);
+    text(label, x + w/2 - textWidth(label)/2, y+h/2+10);
+
+    if (state) {
+      fill(red(onTextcolor), green(onTextcolor), blue(onTextcolor), 8);
+      rect(x, y, w, h, 10);
+    }
+  }
+
+  public Boolean clicked() {
+    if (mouseX >= x && mouseX <= x + w &&
+        mouseY >= y && mouseY <= y + h) {
+      if(mousePressed && !wasClicked) {
+        wasClicked = true;
+        if (isToggle) {
+          state = ! state;
+        }
+        return true;
+      }
+    }
+    return false;
+
+  }
+
+  void mouseReleased() {
+    wasClicked = false;
+  }
+}
 
 
 class Point {
@@ -940,7 +1035,7 @@ class Rect {
     this.h = _h;
   }
 
-  public Boolean containPoint(float px, float py) {
+  public Boolean containsPoint(float px, float py) {
     return !((px<x) || (px>x+w) || (py<y) || (py>y+h));
   }
 }
