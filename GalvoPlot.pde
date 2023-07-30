@@ -211,10 +211,10 @@ class GalvoPlot {
       float ypos = xplotCenterY + p.x * plotHeight/2;
       if (p.isBlank()) {
         g.strokeWeight(1);
-        g.stroke(255, 255, 255, 96);
+        g.stroke(84);
       }
       else {
-        g.strokeWeight(3);
+        g.strokeWeight(5);
         g.stroke(p.r, p.g, p.b, 255);
       }
       g.vertex(x+i, ypos);
@@ -229,26 +229,34 @@ class GalvoPlot {
       float ypos = yplotCenterY + p.y * plotHeight/2;
       if (p.isBlank()) {
         g.strokeWeight(1);
-        g.stroke(255, 255, 255, 96);
+        g.stroke(96);
       }
       else {
-        g.strokeWeight(3);
+        g.strokeWeight(5);
         g.stroke(p.r, p.g, p.b, 255);
       }
       g.vertex(x+i, ypos);
     }
     g.endShape();
    
-    // // Highlight the selected point
-    if (selectedPointIndex >= 0 && selectedPointIndex < npoints-1) {
-      int cx = x + (int)(((float)selectedPointIndex / npoints) * w);
-      Point p1 = points.get(selectedPointIndex);
-      g.stroke(192);
-      g.strokeWeight(2);
-      g.line(cx, y+vpad+2, cx, h - vpad*2-2);
-    }
+    drawCursor(x, y, w, h, npoints);
+
   }
 
+
+
+  public void drawCursor(int x, int y, int w, int h, int npoints) {
+    if (selectedPointIndex >= 0 && selectedPointIndex < npoints) {
+      int cx = x + (int)(((float)selectedPointIndex / npoints) * w);
+      g.stroke(192);
+      g.strokeWeight(1);
+      g.line(cx, y+vpad+2, cx, h - vpad*2-2);
+
+      g.fill(255);
+      g.textSize(22);
+      g.text(selectedPointIndex, cx, g.height - vpad+7);
+    }
+  }
 
   public void draw(int x, int y, int w, int h) {
     image(g, x, y, w, h);
