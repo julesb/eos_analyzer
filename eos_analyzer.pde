@@ -308,6 +308,15 @@ void draw() {
 }
 
 
+float getViewportMin(float cursor, float zoom) {
+  return cursor * (1.0f - 1.0f / zoom);
+}
+
+float getViewportMax(float cursor, float zoom) {
+  return getViewportMin(cursor, zoom) + 1.0f / zoom;
+}
+
+
 void drawStatusPanel(int x, int y, int w, int h,
              ArrayList<Point> points, ArrayList<Region> regionsAtSelection) {
   int pad = 10;
@@ -321,6 +330,34 @@ void drawStatusPanel(int x, int y, int w, int h,
 
   oscframesButton.label = String.format("osc: %08d", oscFrameCount);
   oscframesButton.draw(x+pad*2, y+pad*2);
+
+  fill(255);
+  textSize(32);
+  String selText = (galvoPlot.selectedPointIndex > -1)?
+                    String.format("sel: %d", galvoPlot.selectedPointIndex)
+                    : "sel: none";
+  text(selText, x+pad*2, y+pad*4+buttonHeight*3);
+
+  text(String.format("zoom: %.2f", galvoPlot.zoom),
+       x+pad*2, y+pad*4+buttonHeight*4);
+
+  text(String.format("cursor: %.2f", galvoPlot.cursorNormalized),
+       x+pad*2, y+pad*4+buttonHeight*5);
+  
+  float viewportWidthNormalized = 1.0 / galvoPlot.zoom;
+  text(String.format("VPw: %.2f", 1.0 / galvoPlot.zoom),
+       x+pad*2, y+pad*4+buttonHeight*6);
+
+  float vpMin = galvoPlot.cursorNormalized * (1.0 - galvoPlot.zoom);
+  float vpMax = galvoPlot.cursorNormalized + viewportWidthNormalized/2.0/galvoPlot.zoom;
+
+  text(String.format("VPmin: %.2f",
+                     getViewportMin(galvoPlot.cursorNormalized, galvoPlot.zoom)),
+       x+pad*2, y+pad*4+buttonHeight*7);
+
+  text(String.format("VPmax: %.2f",
+                     getViewportMax(galvoPlot.cursorNormalized, galvoPlot.zoom)),
+       x+pad*2, y+pad*4+buttonHeight*8);
 
   stroke(borderColor);
   drawSelectionInfoPanel(x+pad, y+h-180-pad, 280, infoPanelHeight,
@@ -778,13 +815,13 @@ void mouseClicked() {
 
 void mouseWheel(MouseEvent event) {
   float e = event.getCount();
-  galvoPlot.zoomVelocity += -e / 100;
+  galvoPlot.zoomVelocity += -e * galvoPlot.zoom / 100;
   println(galvoPlot.zoom);
 }
 
 void mouseDragged() {
   if (galvoPlotScreenRect.containsPoint(mouseX, mouseY)) {
-    galvoPlot.panX += mouseX - pmouseX;
+    //galvoPlot.panX += mouseX - pmouseX;
   }
 }
 
