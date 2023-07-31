@@ -778,8 +778,8 @@ void mouseClicked() {
 
 void mouseWheel(MouseEvent event) {
   float e = event.getCount();
-  galvoPlot.zoomVelocity += e / 100;
-  println(e);
+  galvoPlot.zoomVelocity += -e / 100;
+  println(galvoPlot.zoom);
 }
 
 void mouseDragged() {
