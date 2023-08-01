@@ -417,7 +417,6 @@ void drawSelectionInfoPanel(int x, int y, int w, int h, ArrayList<Point> points,
   }
 
   // Color patch
-  fill(selectedPoint.r, selectedPoint.g, selectedPoint.b);
   if (isBlank) {
     stroke(255,255,255,64);
     rect(xpos+margin, ypos+margin, colorw-2*margin, colorh-2*margin);
@@ -426,6 +425,7 @@ void drawSelectionInfoPanel(int x, int y, int w, int h, ArrayList<Point> points,
   }
   else {
     noStroke();
+    fill(selectedPoint.r, selectedPoint.g, selectedPoint.b);
     rect(xpos+margin, ypos+margin, colorw-2*margin, colorh-2*margin);
   }
 
@@ -814,15 +814,14 @@ void mouseClicked() {
 }
 
 void mouseWheel(MouseEvent event) {
-  float e = event.getCount();
-  galvoPlot.zoomVelocity += -e * galvoPlot.zoom / 100;
-  println(galvoPlot.zoom);
+  if (galvoPlotScreenRect.containsPoint(mouseX, mouseY)) {
+    float e = event.getCount();
+    galvoPlot.zoomVelocity += -e * galvoPlot.zoom / 200;
+  }
 }
 
 void mouseDragged() {
-  if (galvoPlotScreenRect.containsPoint(mouseX, mouseY)) {
-    //galvoPlot.panX += mouseX - pmouseX;
-  }
+
 }
 
 void mouseReleased() {
