@@ -278,11 +278,11 @@ class GalvoPlot {
       float xpos = x + i * w / npointsInView;
       float ypos = xplotCenterY + p.x * plotHeight/2;
       if (p.isBlank()) {
-        g.strokeWeight(1);
-        g.stroke(112);
+        g.strokeWeight(1+zoom/4);
+        g.stroke(160);
       }
       else {
-        g.strokeWeight(5);
+        g.strokeWeight(5+zoom/4);
         g.stroke(p.r, p.g, p.b, 255);
       }
       g.point(xpos, ypos);
@@ -299,11 +299,11 @@ class GalvoPlot {
       float xpos = x + i * w / npointsInView;
       float ypos = yplotCenterY + p.y * plotHeight/2;
       if (p.isBlank()) {
-        g.strokeWeight(1);
-        g.stroke(112);
+        g.strokeWeight(1+zoom/4);
+        g.stroke(160);
       }
       else {
-        g.strokeWeight(5);
+        g.strokeWeight(5+zoom/4);
         g.stroke(p.r, p.g, p.b, 255);
       }
       g.point(xpos, ypos);

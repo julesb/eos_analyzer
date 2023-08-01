@@ -38,8 +38,6 @@ import java.util.zip.DataFormatException;
     - On window resize, we should resize all PGraphics contexts to
       be the actual displayed size so we get pixel perfect renders.
  
-    - Galvo plot pan and zoom.
-    
     - Rework history plot drawing to use image region copy scrolling
       instead of rendering each point on every frame - at least check
       if that method is more efficient.
@@ -71,9 +69,6 @@ int galvoPlotHeight = 768;
 GalvoPlot galvoPlot;
 Rect galvoPlotCtxRect;
 Rect galvoPlotScreenRect = new Rect(0, 0, 1024, galvoPlotHeight);
-
-// the mouse cursor, in galvo plot image space
-float galvoPlotCursorX = 0.0;
 
 int statusPanelWidth = 300;
 Rect statusPanelScreenRect; 
@@ -524,7 +519,6 @@ int findClosestPointIndex(Point target, ArrayList<Point> points) {
   int npoints = points.size();
   float minDist = 999999.0;
   int minIndex = -1;
-  //Point target = new Point(px, py);
 
   for(int i=0; i< npoints; i++) {
     Point p = points.get(i);
@@ -540,8 +534,10 @@ int findClosestPointIndex(Point target, ArrayList<Point> points) {
 
 void updateCursors(int mx, int my, ArrayList<Point> points) {
   // Update galvo plot cursor
-  galvoPlot.updateCursor(mx, my, galvoPlotScreenRect, points);
-
+  if (galvoPlotScreenRect.containsPoint(mx, my)) {
+    galvoPlot.updateCursor(mx, my, galvoPlotScreenRect, points);
+    selectedPoint = galvoPlot.selectedPoint; 
+  }
   // Update projection cursor
   if(projScreenRect.containsPoint(mx, my)) {
     float projCursorX = (float)(mx - projScreenRect.x)
