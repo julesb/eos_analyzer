@@ -7,9 +7,18 @@ class GalvoPlot {
   int regionAreaHeight = 80;
   int infoAreaHeight = 20;
   int vpad= 10;
+  
   int selectedPointIndex = 0;
-  Boolean fitToWidth = false;
+  Point selectedPoint;
+  
+  Boolean fitToWidth = true;
   int scaledPlotWidth = 1;
+
+  float zoom = 1.0;
+  float zoomVelocity = 0.0;
+  float cursorNormalized = 0.0;
+
+
 
   public GalvoPlot(int _ctxWidth, int _ctxHeight) {
     ctxWidth = _ctxWidth;
@@ -19,7 +28,7 @@ class GalvoPlot {
 
 
   public void render(ArrayList<Point> points, ArrayList<Region> regions,
-                     int selectedPointIndex, float smoothPointCount) {
+                     float smoothPointCount) {
     if (ctxResizeLock) {
       println("resize lock");
       return;
@@ -30,12 +39,35 @@ class GalvoPlot {
     }
     scaledPlotWidth = w;
 
-    this.selectedPointIndex = selectedPointIndex;
+    zoomVelocity *= 0.8;
+    zoom += zoomVelocity;
+    zoom = max(1.0, zoom);
+
     g.beginDraw();
     g.background(0);
+    drawZoomIndicator(0, 0, g.width, g.height, points.size());
     drawRegions(0, vpad, scaledPlotWidth, regionAreaHeight, points, regions);
     drawGalvoPlot(0, 0, scaledPlotWidth, g.height, points, regions);
+    drawCursor(0, 0, g.width, g.height, points.size());
+
     g.endDraw();
+  }
+
+  void setSelectedIndex(int pointIndex, ArrayList<Point> points) {
+    if (pointIndex >= 0 && pointIndex < points.size()) {
+      this.selectedPointIndex = pointIndex;
+      this.selectedPoint = points.get(pointIndex);
+      this.cursorNormalized = (float)pointIndex / points.size();
+    }
+    else {
+      this.selectedPointIndex = -1;
+      this.selectedPoint = null;
+    }
+  }
+
+  void updateCursor(int mx, int my, Rect screenRect, ArrayList<Point> points) {
+    float cursortmp = ((float)mx - screenRect.x) / screenRect.w;
+    setSelectedIndex((int)(cursortmp * points.size()), points);
   }
 
 
@@ -63,16 +95,19 @@ class GalvoPlot {
     //g.fill(255,255,255,8);
     //g.rect(x, y, w-1, h-1);
 
-    g.stroke(255,255,255,24);
+    g.stroke(255,255,255,8);
     for (int i=0; i < 5; i++) {
       int yline = (int) (y + pad + i * channelHeight);
-      g.line(0, yline, g.width, yline);
+      //g.line(0, yline, g.width, yline);
+      g.line(0, yline, scaledPlotWidth, yline);
     }
     
     for (int ridx=0; ridx < nregions; ridx++) {
       Region region = regions.get(ridx);
-      float x1 = (float)region.startIndex / npoints * w;
-      float x2 = (float)(1+region.endIndex) / npoints * w;
+      float x1 = x + w * getScreenXForIndex(region.startIndex, cursorNormalized,
+                                            zoom, npoints);
+      float x2 = x + w * getScreenXForIndex(region.endIndex, cursorNormalized,
+                                            zoom, npoints);
       float xw = x2 - x1;
       switch(region.type) {
         case Region.BLANK:
@@ -88,8 +123,9 @@ class GalvoPlot {
           g.fill(255,255,255,32);
           for (int pidx=region.startIndex; pidx <= region.endIndex; pidx++) {
             Point p1 = points.get(pidx);
+            float px = x + w * getScreenXForIndex(pidx, cursorNormalized, zoom, npoints);
             g.fill(p1.r, p1.g, p1.b, 160);
-            g.rect((float)pidx/npoints * w+1, y1, xw/region.pointCount, channelHeight/2);
+            g.rect(px, y1, xw/region.pointCount, channelHeight/2);
           }
           break;
         case Region.DWELL:
@@ -112,6 +148,27 @@ class GalvoPlot {
     pathsHistory.addValue(npaths);
   }
 
+  // normalized cursor, zoom => normalized viewport min x
+  float getViewportMinX(float cursor, float zoom) {
+    return cursor * (1.0f - 1.0f / zoom);
+  }
+
+  float getViewportMaxX(float cursor, float zoom) {
+    return getViewportMin(cursor, zoom) + 1.0f / zoom;
+  }
+
+  float getScreenXForIndex(int sampleIndex, float cursor, float zoom, int waveBufferLen) {
+      // Convert sample index to a normalized position.
+      float normalizedSampleIndex = (float)sampleIndex / waveBufferLen;
+
+      // Calculate the normalized position of this sample within the viewport.
+      float viewportMin = getViewportMin(cursor, zoom);
+      float viewportMax = getViewportMax(cursor, zoom);
+      float screenX = (normalizedSampleIndex - viewportMin) / (viewportMax - viewportMin);
+
+      return screenX;
+  }
+
 
   void drawGalvoPlot(int x, int y, int w, int h,
                      ArrayList<Point> points, ArrayList<Region> regions) {
@@ -126,7 +183,6 @@ class GalvoPlot {
 
     int npoints = points.size();
     int nregions = regions.size();
-
 
     //drawRegions(0,4, (int)w-1, regionAreaHeight, points, regions);
 
@@ -174,14 +230,18 @@ class GalvoPlot {
     //g.strokeWeight(1);
     //g.stroke(255,255,255,32);
 
-    // Path region highlight
+    float viewOffset = (float)selectedPointIndex / points.size() * w;
+
+    // Path region background highlight
     g.noStroke();
     g.fill(255,255,255,8);
     for (int ridx=0; ridx < nregions; ridx++) {
       Region region = regions.get(ridx);
       if (region.type == Region.PATH || region.type == Region.BLANK) {
-        float x1 = x + (float)region.startIndex / npoints * w;
-        float x2 = x + (float)(1+region.endIndex) / npoints * w;
+        float x1 = x + w * getScreenXForIndex(region.startIndex, cursorNormalized,
+                                              zoom, npoints);
+        float x2 = x + w * getScreenXForIndex(region.endIndex, cursorNormalized,
+                                              zoom, npoints);
         float xw = x2 - x1;
         if (region.selected) {
           if (region.type == Region.PATH) {
@@ -203,51 +263,78 @@ class GalvoPlot {
     g.noFill();
     
     g.blendMode(REPLACE);
-    // X galvo plot
-    g.beginShape();
-    for (int i = 0; i < w; i++) {
-      int pidx = (int)(((float)i / w) * npoints);
+
+    float minxn = getViewportMinX(cursorNormalized, zoom);
+    float maxxn = getViewportMaxX(cursorNormalized, zoom);
+    int minIdx = (int)(minxn * (points.size()-0.0));
+    int maxIdx = (int)(maxxn * (points.size()-0.0));
+    int npointsInView = maxIdx - minIdx;
+
+        // X galvo plot
+    //g.beginShape(POINTS);
+    for (int i = 0; i < npointsInView; i++) {
+      int pidx = minIdx + i;
       Point p = points.get(pidx);
+      float xpos = x + i * w / npointsInView;
       float ypos = xplotCenterY + p.x * plotHeight/2;
       if (p.isBlank()) {
-        g.strokeWeight(1);
-        g.stroke(84);
+        g.strokeWeight(1+zoom/4);
+        g.stroke(160);
       }
       else {
-        g.strokeWeight(5);
+        g.strokeWeight(5+zoom/4);
         g.stroke(p.r, p.g, p.b, 255);
       }
-      g.vertex(x+i, ypos);
+      g.point(xpos, ypos);
+      //g.vertex(xpos, ypos);
+      
     }
-    g.endShape();
-    
-    // Y galvo plot
-    g.beginShape();
-    for (int i = 0; i < w; i++) {
-      int pidx = (int)(((float)i / w) * npoints);
+    //g.endShape();
+
+      // Y galvo plot
+    //g.beginShape(POINTS);
+    for (int i = 0; i < npointsInView; i++) {
+      int pidx = minIdx + i;
       Point p = points.get(pidx);
+      float xpos = x + i * w / npointsInView;
       float ypos = yplotCenterY + p.y * plotHeight/2;
       if (p.isBlank()) {
-        g.strokeWeight(1);
-        g.stroke(96);
+        g.strokeWeight(1+zoom/4);
+        g.stroke(160);
       }
       else {
-        g.strokeWeight(5);
+        g.strokeWeight(5+zoom/4);
         g.stroke(p.r, p.g, p.b, 255);
       }
-      g.vertex(x+i, ypos);
+      g.point(xpos, ypos);
+      //g.vertex(xpos, ypos);
+      
     }
-    g.endShape();
-   
-    drawCursor(x, y, w, h, npoints);
-
+    //g.endShape();
   }
 
+
+  public void drawZoomIndicator(int x, int y, int w, int h, int npoints) {
+    float c = 1.0 - 2.0 * ((float)selectedPointIndex / npoints);
+
+    float lineStartX = x + w/2 - w/2/zoom;
+    float lineEndX   = x + w/2 + w/2/zoom;
+    float len = lineEndX - lineStartX;
+    float offs = (w - len)/2 *c;
+    lineStartX -= offs;
+    lineEndX -= offs;
+    float lineY = y + h - infoAreaHeight / 2;
+    
+    g.stroke(32,32,255);
+    g.strokeWeight(5);
+    g.line(lineStartX, lineY, lineEndX, lineY);
+  }
 
 
   public void drawCursor(int x, int y, int w, int h, int npoints) {
     if (selectedPointIndex >= 0 && selectedPointIndex < npoints) {
-      int cx = x + (int)(((float)selectedPointIndex / npoints) * w);
+      float cursorScaled = (float)cursorNormalized * ((float)scaledPlotWidth/w);
+      int cx = fitToWidth? (int)(x+w*cursorNormalized): (int)(x+w*cursorScaled);
       g.stroke(192);
       g.strokeWeight(1);
       g.line(cx, y+vpad+2, cx, h - vpad*2-2);
@@ -257,6 +344,7 @@ class GalvoPlot {
       g.text(selectedPointIndex, cx, g.height - vpad+7);
     }
   }
+
 
   public void draw(int x, int y, int w, int h) {
     image(g, x, y, w, h);
