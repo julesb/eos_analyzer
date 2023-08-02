@@ -102,7 +102,7 @@ int buttonHeight = 40;
 Button receiveButton    = new Button("Receive",   0, 0, buttonWidth, buttonHeight);
 Button oscframesButton  = new Button("F: 000000", 0, 0, buttonWidth, buttonHeight);
 Button renderModeButton = new Button("Shape",     0, 0, buttonWidth, buttonHeight);
-
+Button uncapButton      = new Button("Max FPS",   0, 0, buttonWidth, buttonHeight);
 
 int widthPrev, heightPrev;
 
@@ -186,6 +186,8 @@ void setup() {
 
   renderModeButton.isToggle = true;
   renderModeButton.state = true;
+  uncapButton.isToggle = true;
+  uncapButton.state = false;
 }
 
 
@@ -221,11 +223,17 @@ void draw() {
   }
   if (receiveButton.clicked()) {
     setSnapshotMode(!receiveButton.state);
+    if(receiveButton.state) {
+      uncapButton.state = false;
+    }
   }
   if (renderModeButton.clicked()) {
     galvoPlot.shapeRender = renderModeButton.state;  
   }
 
+  if (uncapButton.clicked()) {
+    setSnapshotMode(true);
+  }
 
   background(8);
   //camera();
@@ -338,6 +346,8 @@ void drawStatusPanel(int x, int y, int w, int h,
   receiveButton.draw(x+pad*2, y+pad*4 + (buttonHeight+pad) * bcount++);
   
   renderModeButton.draw(x+pad*2, y+pad*6 + (buttonHeight+pad) * bcount++);
+  
+  uncapButton.draw(x+pad*2, y+pad*8 + (buttonHeight+pad) * bcount++);
 
   bcount+=2;
 
@@ -775,7 +785,13 @@ void setSnapshotMode(Boolean enabled) {
   if (enabled) {
     snapshotModeEnabled = true;
     oscEnabled = false;
-    targetFrameRate = 600;
+    receiveButton.state = !enabled;
+    if (uncapButton.state) {
+      targetFrameRate = 600;
+    }
+    else {
+      targetFrameRate = 60;
+    }
     updateFrameRate = true;
     loop();
   }
@@ -839,6 +855,7 @@ void mouseReleased() {
   oscframesButton.mouseReleased();
   receiveButton.mouseReleased();
   renderModeButton.mouseReleased();
+  uncapButton.mouseReleased();
 }
 
 void oscEvent(OscMessage message) {
