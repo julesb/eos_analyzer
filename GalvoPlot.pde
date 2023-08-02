@@ -106,7 +106,7 @@ class GalvoPlot {
       Region region = regions.get(ridx);
       float x1 = x + w * getScreenXForIndex(region.startIndex, cursorNormalized,
                                             zoom, npoints);
-      float x2 = x + w * getScreenXForIndex(region.endIndex, cursorNormalized,
+      float x2 = x + w * getScreenXForIndex(region.endIndex+1, cursorNormalized,
                                             zoom, npoints);
       float xw = x2 - x1;
       switch(region.type) {
@@ -240,7 +240,7 @@ class GalvoPlot {
       if (region.type == Region.PATH || region.type == Region.BLANK) {
         float x1 = x + w * getScreenXForIndex(region.startIndex, cursorNormalized,
                                               zoom, npoints);
-        float x2 = x + w * getScreenXForIndex(region.endIndex, cursorNormalized,
+        float x2 = x + w * getScreenXForIndex(region.endIndex+1, cursorNormalized,
                                               zoom, npoints);
         float xw = x2 - x1;
         if (region.selected) {
