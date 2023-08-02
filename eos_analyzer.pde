@@ -99,8 +99,10 @@ int padding = 20;
 
 int buttonWidth = 200;
 int buttonHeight = 40;
-Button receiveButton = new Button("Receive", 0, 0, buttonWidth, buttonHeight);
-Button oscframesButton = new Button("F: 000000", 0, 0, buttonWidth, buttonHeight);
+Button receiveButton    = new Button("Receive",   0, 0, buttonWidth, buttonHeight);
+Button oscframesButton  = new Button("F: 000000", 0, 0, buttonWidth, buttonHeight);
+Button renderModeButton = new Button("Shape",     0, 0, buttonWidth, buttonHeight);
+
 
 int widthPrev, heightPrev;
 
@@ -178,8 +180,12 @@ void setup() {
 
   updateScreenRects();
 
+  // Configure buttons
   receiveButton.isToggle = true;
   receiveButton.state = !snapshotModeEnabled;
+
+  renderModeButton.isToggle = true;
+  renderModeButton.state = true;
 }
 
 
@@ -210,13 +216,16 @@ void draw() {
     }
   }
 
-  if (receiveButton.clicked()) {
-    setSnapshotMode(!receiveButton.state);
-  }
-
   if (oscframesButton.clicked()) {
     oscFrameCount = 0;
   }
+  if (receiveButton.clicked()) {
+    setSnapshotMode(!receiveButton.state);
+  }
+  if (renderModeButton.clicked()) {
+    galvoPlot.shapeRender = renderModeButton.state;  
+  }
+
 
   background(8);
   //camera();
@@ -321,38 +330,44 @@ void drawStatusPanel(int x, int y, int w, int h,
   stroke(borderColor);
   rect(x, y, w, h);
 
-  receiveButton.draw(x+pad*2, y+pad*4 + buttonHeight);
+  int bcount = 0;
 
   oscframesButton.label = String.format("osc: %08d", oscFrameCount);
-  oscframesButton.draw(x+pad*2, y+pad*2);
+  oscframesButton.draw(x+pad*2, y+pad*2 + (buttonHeight+pad) * bcount++);
+  
+  receiveButton.draw(x+pad*2, y+pad*4 + (buttonHeight+pad) * bcount++);
+  
+  renderModeButton.draw(x+pad*2, y+pad*6 + (buttonHeight+pad) * bcount++);
+
+  bcount+=2;
 
   fill(255);
   textSize(32);
   String selText = (galvoPlot.selectedPointIndex > -1)?
                     String.format("sel: %d", galvoPlot.selectedPointIndex)
                     : "sel: none";
-  text(selText, x+pad*2, y+pad*4+buttonHeight*3);
+  text(selText, x+pad*2, y+pad*4+ (buttonHeight+pad) * bcount++);
 
   text(String.format("zoom: %.2f", galvoPlot.zoom),
-       x+pad*2, y+pad*4+buttonHeight*4);
+       x+pad*2, y+pad*4+(buttonHeight+pad) * bcount++);
 
   text(String.format("cursor: %.2f", galvoPlot.cursorNormalized),
-       x+pad*2, y+pad*4+buttonHeight*5);
+       x+pad*2, y+pad*4+(buttonHeight+pad) * bcount++);
   
   float viewportWidthNormalized = 1.0 / galvoPlot.zoom;
   text(String.format("VPw: %.2f", 1.0 / galvoPlot.zoom),
-       x+pad*2, y+pad*4+buttonHeight*6);
+       x+pad*2, y+pad*4+(buttonHeight+pad) * bcount++);
 
   float vpMin = galvoPlot.cursorNormalized * (1.0 - galvoPlot.zoom);
   float vpMax = galvoPlot.cursorNormalized + viewportWidthNormalized/2.0/galvoPlot.zoom;
 
   text(String.format("VPmin: %.2f",
                      getViewportMin(galvoPlot.cursorNormalized, galvoPlot.zoom)),
-       x+pad*2, y+pad*4+buttonHeight*7);
+       x+pad*2, y+pad*4+(buttonHeight+pad) * bcount++);
 
   text(String.format("VPmax: %.2f",
                      getViewportMax(galvoPlot.cursorNormalized, galvoPlot.zoom)),
-       x+pad*2, y+pad*4+buttonHeight*8);
+       x+pad*2, y+pad*4+(buttonHeight+pad) * bcount++);
 
   stroke(borderColor);
   drawSelectionInfoPanel(x+pad, y+h-180-pad, 280, infoPanelHeight,
@@ -760,7 +775,7 @@ void setSnapshotMode(Boolean enabled) {
   if (enabled) {
     snapshotModeEnabled = true;
     oscEnabled = false;
-    targetFrameRate = 60;
+    targetFrameRate = 600;
     updateFrameRate = true;
     loop();
   }
@@ -823,6 +838,7 @@ void mouseDragged() {
 void mouseReleased() {
   oscframesButton.mouseReleased();
   receiveButton.mouseReleased();
+  renderModeButton.mouseReleased();
 }
 
 void oscEvent(OscMessage message) {
