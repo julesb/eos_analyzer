@@ -109,6 +109,9 @@ class GalvoPlot {
       float x2 = x + w * getScreenXForIndex(region.endIndex+1, cursorNormalized,
                                             zoom, npoints);
       float xw = x2 - x1;
+      float pathSegmentW = xw/region.pointCount;
+      pathSegmentW = zoom < 5? pathSegmentW : pathSegmentW - 2;
+
       switch(region.type) {
         case Region.BLANK:
           y1 = y + pad + channelHeight/4 + channelHeight * channelRankBlank;
@@ -125,7 +128,7 @@ class GalvoPlot {
             Point p1 = points.get(pidx);
             float px = x + w * getScreenXForIndex(pidx, cursorNormalized, zoom, npoints);
             g.fill(p1.r, p1.g, p1.b, 160);
-            g.rect(px, y1, xw/region.pointCount, channelHeight/2);
+            g.rect(px, y1, pathSegmentW, channelHeight/2);
           }
           break;
         case Region.DWELL:
