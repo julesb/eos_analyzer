@@ -45,11 +45,14 @@ class GalvoPlot {
 
     g.beginDraw();
     g.background(0);
-    drawZoomIndicator(0, 0, g.width, g.height, points.size());
+    if (zoom > 1.0) {
+      drawZoomIndicator(0, 0, g.width, g.height, points.size());
+    }
     drawRegions(0, vpad, scaledPlotWidth, regionAreaHeight, points, regions);
     drawGalvoPlot(0, 0, scaledPlotWidth, g.height, points, regions);
-    drawCursor(0, 0, g.width, g.height, points.size());
-
+    if (selectedPointIndex > -1) {
+      drawCursor(0, 0, g.width, g.height, points.size());
+    }
     g.endDraw();
   }
 
@@ -110,7 +113,6 @@ class GalvoPlot {
                                             zoom, npoints);
       float xw = x2 - x1;
       float pathSegmentW = xw/region.pointCount;
-      pathSegmentW = zoom < 5? pathSegmentW : pathSegmentW - 2;
 
       switch(region.type) {
         case Region.BLANK:
@@ -142,7 +144,7 @@ class GalvoPlot {
             y1 = y + pad + channelHeight * channelRankDwellColor + 2;
             g.fill(region.col[0],region.col[1],region.col[2],192);
             g.noStroke();
-            g.rect(x1, y1, xw, channelHeight - 6);
+            g.rect(x1, y1, zoom<5?xw:xw-2, channelHeight - 6);
           }
           break;
       }
@@ -272,11 +274,15 @@ class GalvoPlot {
     int minIdx = (int)(minxn * (points.size()-0.0));
     int maxIdx = (int)(maxxn * (points.size()-0.0));
     int npointsInView = 1 + maxIdx - minIdx;
+    float psizeBlank = min(20, 1 + zoom / 4);
+    float psizeColor = min(20, 5 + zoom / 4);
 
     if (shapeRender) {
       // X galvo plot (shape)
+
+      // X blank
       g.beginShape(POINTS);
-      g.strokeWeight(1+zoom/4);
+      g.strokeWeight(psizeBlank);
       g.stroke(160);
       for (int i = 0; i < npointsInView; i++) {
         int pidx = min(npoints-1, minIdx + i);
@@ -284,27 +290,53 @@ class GalvoPlot {
         if (p.isBlank()) {
           float xpos = x + w * getScreenXForIndex(pidx, cursorNormalized, zoom, npoints);
           float ypos = xplotCenterY + p.x * plotHeight/2;
-          g.vertex(xpos, ypos);
-        }
-      }
-      g.endShape();
-      g.beginShape(POINTS);
-      g.strokeWeight(5+zoom/4);
-      for (int i = 0; i < npointsInView; i++) {
-        int pidx = min(npoints-1, minIdx + i);
-        Point p = points.get(pidx);
-        if (!p.isBlank()) {
-          float xpos = x + w * getScreenXForIndex(pidx, cursorNormalized, zoom, npoints);
-          float ypos = xplotCenterY + p.x * plotHeight/2;
-          g.stroke(p.r, p.g, p.b, 255);
           g.vertex(xpos, ypos);
         }
       }
       g.endShape();
 
+      // X color - points
+      if (zoom < 10) {
+        g.noStroke();
+        g.beginShape(POINTS);
+        g.strokeWeight(5+zoom/4);
+        for (int i = 0; i < npointsInView; i++) {
+          int pidx = min(npoints-1, minIdx + i);
+          Point p = points.get(pidx);
+          if (!p.isBlank()) {
+            float xpos = x + w * getScreenXForIndex(pidx, cursorNormalized, zoom, npoints);
+            float ypos = xplotCenterY + p.x * plotHeight/2;
+            g.stroke(p.r, p.g, p.b, 255);
+            g.vertex(xpos, ypos);
+          }
+        }
+        g.endShape();
+      }
+      else {
+        g.noStroke();
+        g.beginShape(QUADS);
+        for (int i = 0; i < npointsInView; i++) {
+          int pidx = min(npoints-1, minIdx + i);
+          Point p = points.get(pidx);
+          if (!p.isBlank()) {
+            float xpos = x + w * getScreenXForIndex(pidx, cursorNormalized, zoom, npoints);
+            float ypos = xplotCenterY + p.x * plotHeight/2 - psizeColor/2;
+            g.fill(p.r, p.g, p.b, 255);
+            g.vertex(xpos, ypos);
+            g.vertex(xpos+psizeColor, ypos);
+            g.vertex(xpos+psizeColor, ypos+psizeColor);
+            g.vertex(xpos, ypos+psizeColor);
+
+          }
+        }
+        g.endShape();
+      }
+
       // Y galvo plot (shape)
+
+      // Y blank
       g.beginShape(POINTS);
-      g.strokeWeight(1+zoom/4);
+      g.strokeWeight(psizeBlank);
       g.stroke(160);
       for (int i = 0; i < npointsInView; i++) {
         int pidx = min(npoints-1, minIdx + i);
@@ -316,19 +348,42 @@ class GalvoPlot {
         }
       }
       g.endShape();
-      g.beginShape(POINTS);
-      g.strokeWeight(5+zoom/4);
-      for (int i = 0; i < npointsInView; i++) {
-        int pidx = min(npoints-1, minIdx + i);
-        Point p = points.get(pidx);
-        if (!p.isBlank()) {
-          float xpos = x + w * getScreenXForIndex(pidx, cursorNormalized, zoom, npoints);
-          float ypos = yplotCenterY + p.y * plotHeight/2;
-          g.stroke(p.r, p.g, p.b, 255);
-          g.vertex(xpos, ypos);
+
+      if (zoom < 10) {
+        // Y color points
+        g.strokeWeight(psizeColor);
+        g.beginShape(POINTS);
+        for (int i = 0; i < npointsInView; i++) {
+          int pidx = min(npoints-1, minIdx + i);
+          Point p = points.get(pidx);
+          if (!p.isBlank()) {
+            float xpos = x + w * getScreenXForIndex(pidx, cursorNormalized, zoom, npoints);
+            float ypos = yplotCenterY + p.y * plotHeight/2;
+            g.stroke(p.r, p.g, p.b, 255);
+            g.vertex(xpos, ypos);
+          }
         }
+        g.endShape();
       }
-      g.endShape();
+      else {
+        // Y color quads
+        g.noStroke();
+        g.beginShape(QUADS);
+        for (int i = 0; i < npointsInView; i++) {
+          int pidx = min(npoints-1, minIdx + i);
+          Point p = points.get(pidx);
+          if (!p.isBlank()) {
+            float xpos = x + w * getScreenXForIndex(pidx, cursorNormalized, zoom, npoints);
+            float ypos = yplotCenterY + p.y * plotHeight/2 - psizeColor/2;
+            g.fill(p.r, p.g, p.b, 255);
+            g.vertex(xpos, ypos);
+            g.vertex(xpos+psizeColor, ypos);
+            g.vertex(xpos+psizeColor, ypos+psizeColor);
+            g.vertex(xpos, ypos+psizeColor);
+          }
+        }
+        g.endShape();
+      }
     }
     else {
       // X galvo plot (points)
@@ -338,16 +393,16 @@ class GalvoPlot {
         float xpos = x + i * w / npointsInView;
         float ypos = xplotCenterY + p.x * plotHeight/2;
         if (p.isBlank()) {
-          g.strokeWeight(1+zoom/4);
+          g.strokeWeight(psizeBlank);
           g.stroke(160);
         }
         else {
-          g.strokeWeight(5+zoom/4);
+          g.strokeWeight(psizeColor);
           g.stroke(p.r, p.g, p.b, 255);
         }
         g.point(xpos, ypos);
       }
-      
+
       // Y galvo plot (points)
       for (int i = 0; i < npointsInView; i++) {
         int pidx = min(npoints-1, minIdx + i);
@@ -355,16 +410,15 @@ class GalvoPlot {
         float xpos = x + i * w / npointsInView;
         float ypos = yplotCenterY + p.y * plotHeight/2;
         if (p.isBlank()) {
-          g.strokeWeight(1+zoom/4);
+          g.strokeWeight(psizeBlank);
           g.stroke(160);
         }
         else {
-          g.strokeWeight(5+zoom/4);
+          g.strokeWeight(psizeColor);
           g.stroke(p.r, p.g, p.b, 255);
         }
         g.point(xpos, ypos);
       }
-  
     }
   }
 
