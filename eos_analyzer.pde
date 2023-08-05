@@ -221,9 +221,11 @@ void draw() {
     }
   }
 
+  // Buttons
   if (oscframesButton.clicked()) {
     oscFrameCount = 0;
   }
+  oscframesButton.label = String.format("osc: %08d", oscFrameCount);
   if (receiveButton.clicked()) {
     setSnapshotMode(!receiveButton.state);
   }
@@ -336,51 +338,48 @@ void drawStatusPanel(int x, int y, int w, int h,
   int pad = 10;
   int infoPanelHeight = 180;
   int bcount = 0;
+  int vstep = buttonHeight+pad;
 
   fill(0);
   strokeWeight(1);
   stroke(borderColor);
   rect(x, y, w, h);
 
-  oscframesButton.label = String.format("osc: %08d", oscFrameCount);
-  
-  oscframesButton.draw (x+pad*2, y+pad*2 + (buttonHeight+pad) * bcount++);
-  receiveButton.draw   (x+pad*2, y+pad*3 + (buttonHeight+pad) * bcount++);
-  uncapButton.draw     (x+pad*2, y+pad*4 + (buttonHeight+pad) * bcount++);
-  renderModeButton.draw(x+pad*2, y+pad*5 + (buttonHeight+pad) * bcount++);
-  fitwidthButton.draw  (x+pad*2, y+pad*6 + (buttonHeight+pad) * bcount++);
+  // Draw buttons
+  oscframesButton.draw (x+pad*2, y+pad*2 + vstep * bcount++);
+  receiveButton.draw   (x+pad*2, y+pad*3 + vstep * bcount++);
+  uncapButton.draw     (x+pad*2, y+pad*4 + vstep * bcount++);
+  renderModeButton.draw(x+pad*2, y+pad*5 + vstep * bcount++);
+  fitwidthButton.draw  (x+pad*2, y+pad*6 + vstep * bcount++);
 
   bcount+=2;
 
-  fill(255);
+  // Draw debug info
+  fill(192);
   textSize(32);
-  String selText = (galvoPlot.selectedPointIndex > -1)?
+  float vpw = 1.0 / galvoPlot.zoom;
+  float vpMin = galvoPlot.cursorNormalized * vpw;
+  float vpMax = galvoPlot.cursorNormalized + vpw / 2.0 / galvoPlot.zoom;
+
+  String selTxt = (galvoPlot.selectedPointIndex > -1)?
                     String.format("sel: %d", galvoPlot.selectedPointIndex)
                     : "sel: none";
-  text(selText, x+pad*2, y+pad*4+ (buttonHeight+pad) * bcount++);
+  String zoomTxt = String.format("zoom: %.2f", galvoPlot.zoom);
+  String cursorTxt = String.format("cursor: %.2f", galvoPlot.cursorNormalized);
+  String vpwTxt = String.format("VPw: %.2f", 1.0 / galvoPlot.zoom);
+  String vpminTxt = String.format("VPmin: %.2f",
+                    getViewportMin(galvoPlot.cursorNormalized, galvoPlot.zoom));
+  String vpmaxTxt = String.format("VPmax: %.2f",
+                     getViewportMax(galvoPlot.cursorNormalized, galvoPlot.zoom));
 
-  text(String.format("zoom: %.2f", galvoPlot.zoom),
-       x+pad*2, y+pad*4+(buttonHeight+pad) * bcount++);
+  text(selTxt,    x+pad*2, y + vstep * bcount++);
+  text(zoomTxt,   x+pad*2, y + vstep * bcount++);
+  text(cursorTxt, x+pad*2, y + vstep * bcount++);
+  text(vpwTxt,    x+pad*2, y + vstep * bcount++);
+  text(vpminTxt,  x+pad*2, y + vstep * bcount++);
+  text(vpmaxTxt,  x+pad*2, y + vstep * bcount++);
 
-  text(String.format("cursor: %.2f", galvoPlot.cursorNormalized),
-       x+pad*2, y+pad*4+(buttonHeight+pad) * bcount++);
-  
-  float viewportWidthNormalized = 1.0 / galvoPlot.zoom;
-  text(String.format("VPw: %.2f", 1.0 / galvoPlot.zoom),
-       x+pad*2, y+pad*4+(buttonHeight+pad) * bcount++);
-
-  float vpMin = galvoPlot.cursorNormalized * (1.0 - galvoPlot.zoom);
-  float vpMax = galvoPlot.cursorNormalized + viewportWidthNormalized/2.0/galvoPlot.zoom;
-
-  text(String.format("VPmin: %.2f",
-                     getViewportMin(galvoPlot.cursorNormalized, galvoPlot.zoom)),
-       x+pad*2, y+pad*4+(buttonHeight+pad) * bcount++);
-
-  text(String.format("VPmax: %.2f",
-                     getViewportMax(galvoPlot.cursorNormalized, galvoPlot.zoom)),
-       x+pad*2, y+pad*4+(buttonHeight+pad) * bcount++);
-
-  stroke(borderColor);
+  // Draw selection info panel
   drawSelectionInfoPanel(x+pad, y+h-180-pad, 280, infoPanelHeight,
                          points, regionsAtSelection);
 } 
@@ -406,7 +405,7 @@ void drawSelectionInfoPanel(int x, int y, int w, int h, ArrayList<Point> points,
   int textx = textOriginX, texty = textOriginY;
 
   textSize(24);
-  stroke(255,255,255,32);
+  stroke(borderColor);
   fill(0,0,0, 240);
   strokeWeight(1);
   rect(xpos, ypos, w, h);
