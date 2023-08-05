@@ -99,10 +99,11 @@ int padding = 20;
 
 int buttonWidth = 200;
 int buttonHeight = 40;
-Button receiveButton    = new Button("Receive",   0, 0, buttonWidth, buttonHeight);
-Button oscframesButton  = new Button("F: 000000", 0, 0, buttonWidth, buttonHeight);
-Button renderModeButton = new Button("Shape",     0, 0, buttonWidth, buttonHeight);
-Button uncapButton      = new Button("Uncap",     0, 0, buttonWidth, buttonHeight);
+Button receiveButton    = new Button("Receive",       0, 0, buttonWidth, buttonHeight);
+Button oscframesButton  = new Button("F: 000000",     0, 0, buttonWidth, buttonHeight);
+Button renderModeButton = new Button("Shape",         0, 0, buttonWidth, buttonHeight);
+Button uncapButton      = new Button("Uncap",         0, 0, buttonWidth, buttonHeight);
+Button fitwidthButton   = new Button("Fit width",     0, 0, buttonWidth, buttonHeight);
 
 int widthPrev, heightPrev;
 
@@ -188,6 +189,8 @@ void setup() {
   renderModeButton.state = true;
   uncapButton.isToggle = true;
   uncapButton.state = false;
+  fitwidthButton.isToggle = true;
+  fitwidthButton.state = true;
 }
 
 
@@ -227,9 +230,11 @@ void draw() {
   if (renderModeButton.clicked()) {
     galvoPlot.shapeRender = renderModeButton.state;  
   }
-
   if (uncapButton.clicked()) {
     setSnapshotMode(true);
+  }
+  if (fitwidthButton.clicked()) {
+    galvoPlot.fitToWidth = fitwidthButton.state;
   }
 
   background(8);
@@ -343,6 +348,7 @@ void drawStatusPanel(int x, int y, int w, int h,
   receiveButton.draw   (x+pad*2, y+pad*3 + (buttonHeight+pad) * bcount++);
   uncapButton.draw     (x+pad*2, y+pad*4 + (buttonHeight+pad) * bcount++);
   renderModeButton.draw(x+pad*2, y+pad*5 + (buttonHeight+pad) * bcount++);
+  fitwidthButton.draw  (x+pad*2, y+pad*6 + (buttonHeight+pad) * bcount++);
 
   bcount+=2;
 
@@ -864,6 +870,7 @@ void mouseReleased() {
   receiveButton.mouseReleased();
   renderModeButton.mouseReleased();
   uncapButton.mouseReleased();
+  fitwidthButton.mouseReleased();
 }
 
 void oscEvent(OscMessage message) {
