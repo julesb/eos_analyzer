@@ -102,7 +102,7 @@ int buttonHeight = 40;
 Button receiveButton    = new Button("Receive",   0, 0, buttonWidth, buttonHeight);
 Button oscframesButton  = new Button("F: 000000", 0, 0, buttonWidth, buttonHeight);
 Button renderModeButton = new Button("Shape",     0, 0, buttonWidth, buttonHeight);
-Button uncapButton      = new Button("Max FPS",   0, 0, buttonWidth, buttonHeight);
+Button uncapButton      = new Button("Uncap",     0, 0, buttonWidth, buttonHeight);
 
 int widthPrev, heightPrev;
 
@@ -140,7 +140,7 @@ void setup() {
   textSize(24);
   frameRate(480);
   galvoPlotCtxRect = new Rect(0, 0, width, galvoPlotHeight);
-  projectionCtx = createGraphics(projectionCtxRect.w, projectionCtxRect.h, P2D);
+  projectionCtx = createGraphics(projectionCtxRect.w, projectionCtxRect.h, P3D);
   galvoPlot = new GalvoPlot(galvoPlotCtxRect.w, galvoPlotCtxRect.h);
   
   statusPanelScreenRect = new Rect(projScreenRect.x,
@@ -223,9 +223,6 @@ void draw() {
   }
   if (receiveButton.clicked()) {
     setSnapshotMode(!receiveButton.state);
-    if(receiveButton.state) {
-      uncapButton.state = false;
-    }
   }
   if (renderModeButton.clicked()) {
     galvoPlot.shapeRender = renderModeButton.state;  
@@ -333,21 +330,19 @@ void drawStatusPanel(int x, int y, int w, int h,
              ArrayList<Point> points, ArrayList<Region> regionsAtSelection) {
   int pad = 10;
   int infoPanelHeight = 180;
+  int bcount = 0;
+
   fill(0);
   strokeWeight(1);
   stroke(borderColor);
   rect(x, y, w, h);
 
-  int bcount = 0;
-
   oscframesButton.label = String.format("osc: %08d", oscFrameCount);
-  oscframesButton.draw(x+pad*2, y+pad*2 + (buttonHeight+pad) * bcount++);
   
-  receiveButton.draw(x+pad*2, y+pad*4 + (buttonHeight+pad) * bcount++);
-  
-  renderModeButton.draw(x+pad*2, y+pad*6 + (buttonHeight+pad) * bcount++);
-  
-  uncapButton.draw(x+pad*2, y+pad*8 + (buttonHeight+pad) * bcount++);
+  oscframesButton.draw (x+pad*2, y+pad*2 + (buttonHeight+pad) * bcount++);
+  receiveButton.draw   (x+pad*2, y+pad*3 + (buttonHeight+pad) * bcount++);
+  uncapButton.draw     (x+pad*2, y+pad*4 + (buttonHeight+pad) * bcount++);
+  renderModeButton.draw(x+pad*2, y+pad*5 + (buttonHeight+pad) * bcount++);
 
   bcount+=2;
 
@@ -416,9 +411,6 @@ void drawSelectionInfoPanel(int x, int y, int w, int h, ArrayList<Point> points,
     text(s, x+w/2-textWidth(s)/2, y+h/2);
     return;
   }
-  
-  // stroke(255,255,255,64);
-  // rect(xpos, ypos, w, h);
   
   for (int i=0; i<regionsAtSelection.size(); i++) {
     Region r = regionsAtSelection.get(i);
@@ -563,8 +555,9 @@ void updateCursors(int mx, int my, ArrayList<Point> points) {
     galvoPlot.updateCursor(mx, my, galvoPlotScreenRect, points);
     selectedPoint = galvoPlot.selectedPoint; 
   }
-  // Update projection cursor
-  if(projScreenRect.containsPoint(mx, my)) {
+   
+    // Update projection cursor
+  else if(projScreenRect.containsPoint(mx, my)) {
     float projCursorX = (float)(mx - projScreenRect.x)
                         / projScreenRect.w
                         * projectionCtxRect.w
@@ -580,10 +573,19 @@ void updateCursors(int mx, int my, ArrayList<Point> points) {
     float s = projectionCtxRect.w / 2;
     Point cursorPoint = new Point(projCursorX / s * -1.0, projCursorY / s);
     int closestIndex = findClosestPointIndex(cursorPoint, points);
-    if (closestIndex > -1 && cursorPoint.dist(points.get(closestIndex)) < 0.25) {
-      galvoPlot.setSelectedIndex(closestIndex, points);
-      selectedPoint = points.get(closestIndex);
+
+    if(closestIndex < 0) {
+      galvoPlot.setSelectedIndex(-1, points);
     }
+    else {
+      if (closestIndex > -1 && cursorPoint.dist(points.get(closestIndex)) < 0.25) {
+        galvoPlot.setSelectedIndex(closestIndex, points);
+        selectedPoint = points.get(closestIndex);
+      }
+    }
+  }
+  else {
+    galvoPlot.setSelectedIndex(-1, points);
   }
 }
 
@@ -606,18 +608,6 @@ void drawPlotsLayout(int x, int y, int layoutWidth, int layoutHight, int rows, i
     }
   }
 }
-
-// replaced by drawPlotsLayout
-// void drawPlots(int x, int y, int plotWidth, int plotHeight, int plotMargin) {
-//   int nplots = plots.size();
-//   for (int i=0; i < nplots; i++) {
-//     int xpos = x;
-//     int ypos = y + plotMargin + i*plotHeight + i*plotMargin;
-//     HistoryPlot p = plots.get(i);
-//     p.draw(xpos, ypos, plotWidth, plotHeight);
-//   }
-// }
-
 
 float[] getPathStats(ArrayList<Point> points) {
     float blankDist = 0.0;
@@ -684,54 +674,63 @@ void checkMouse() {
 void renderProjectionImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PGraphics g) {
   int npoints = ppoints.size();
   int nregions = regions.size();
-  float s = g.width / 2.0;
+  float sx = -g.width / 2.0;
+  float sy =  g.width / 2.0;
+
   g.beginDraw();
   g.background(0);
   g.blendMode(ADD);
   g.noFill();
   g.pushMatrix();
-  g.translate(g.width/2, g.height/2); // assume 2D projection
-  
+  g.translate(g.width/2, g.height/2);
+
   g.stroke(borderColor);
   g.strokeWeight(1);
   g.square(-g.height/2, -g.height/2, g.height-1);
+
+  if (showBlankLines) {
+    g.strokeWeight(1);
+    g.stroke(64, 64, 64);
+    g.beginShape(LINES);
+
+    for (int i = 0; i < npoints; i++) {
+      int pidx1 = i;
+      int pidx2 = (i+1) % npoints;
+      Point p1 = ppoints.get(pidx1);
+      if (!p1.isBlank()) {
+        continue;
+      }
+      Point p2 = ppoints.get(pidx2);
+      if (p1.posEqual(p2)) {
+        continue;
+      }
+
+      g.vertex(p1.x*sx, p1.y*sy);
+      g.vertex(p2.x*sx, p2.y*sy);
+    }
+    g.endShape();
+  }
+
+  g.strokeWeight(5);
   g.beginShape(LINES);
+
   for (int i = 0; i < npoints; i++) {
     int pidx1 = i;
     int pidx2 = (i+1) % npoints;
-    Point p1 = (Point)ppoints.get(pidx1);
-    Point p2 = (Point)ppoints.get(pidx2);
-    //p1.x *= -1;
-    //p2.x *= -1;
-
+    Point p1 = ppoints.get(pidx1);
     if (p1.isBlank()) {
-      if (showBlankLines) {
-        g.strokeWeight(1);
-        g.stroke(64, 64, 64);
-      }
-      else {
-        continue;
-      }
+      continue;
     }
-    else {
-      if (p1.selected) {
-        g.strokeWeight(5);
-      }
-      else {
-        g.strokeWeight(5);
-      }
-      g.stroke(p1.r*projBeamIntensity, p1.g*projBeamIntensity, p1.b*projBeamIntensity, 240);
-    }
+
+    Point p2 = ppoints.get(pidx2);
 
     if (p1.posEqual(p2)) {
-      g.vertex(p1.x*-s+1.0, p1.y*s+1.0);
-      g.vertex(p2.x*-s, p2.y*s);
-    }
-    else {
-      g.vertex(p1.x*-s, p1.y*s);
-      g.vertex(p2.x*-s, p2.y*s);
+      continue;
     }
 
+    g.stroke(p1.r, p1.g, p1.b, 240);
+    g.vertex(p1.x*sx, p1.y*sy);
+    g.vertex(p2.x*sx, p2.y*sy);
   }
   g.endShape();
 
@@ -745,7 +744,7 @@ void renderProjectionImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PG
     Point p = ppoints.get(r.startIndex);
     g.strokeWeight(10);
     g.stroke(p.r, p.g, p.b, 128);
-    g.point(p.x*-s, p.y*s);
+    g.point(p.x*sx, p.y*sy);
   }
 
   // Highlight the selected point
@@ -760,8 +759,7 @@ void renderProjectionImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PG
       g.fill(p1.r, p1.b, p1.b, 192);
     }
     g.strokeWeight(2);
-    //g.line(p1.x*-s, p1.y*s, p2.x*-s, p2.y*s );
-    g.ellipse(p1.x*-s, p1.y*s, 25, 25);
+    g.ellipse(p1.x*sx, p1.y*sy, 25, 25);
   }
 
   // draw cursor
@@ -775,17 +773,18 @@ void renderProjectionImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PG
   Point p1 = (Point)ppoints.get(0);
   g.stroke(0, 255, 0);
   g.fill(0, 255,0);
-  g.ellipse(p1.x*-s, p1.y*s, 10, 10);
+  g.ellipse(p1.x*sx, p1.y*sy, 10, 10);
 
   g.popMatrix();
   g.endDraw();
 }
 
+
 void setSnapshotMode(Boolean enabled) {
+  receiveButton.state = !enabled;
   if (enabled) {
     snapshotModeEnabled = true;
     oscEnabled = false;
-    receiveButton.state = !enabled;
     if (uncapButton.state) {
       targetFrameRate = 600;
     }
@@ -799,6 +798,7 @@ void setSnapshotMode(Boolean enabled) {
     snapshotModeEnabled = false;
     targetFrameRate = 480;
     updateFrameRate = true;
+    uncapButton.state = false;
     noLoop();
     oscEnabled = true;
   }
@@ -809,7 +809,6 @@ void keyTyped() {
   switch(key) {
     case ' ':
       setSnapshotMode(!snapshotModeEnabled);
-      receiveButton.state = (!snapshotModeEnabled);
       break;
     case 'b':
       showBlankLines = !showBlankLines;
