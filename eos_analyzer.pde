@@ -649,7 +649,7 @@ float[] getPathStats(ArrayList<Point> points) {
         if (dist > maxDist) {
           maxDist = dist;
         }
-        if (p1.isBlank()) {
+        if (p1.isBlank) {
             dists[0] += dist;
         }
         else {
@@ -713,7 +713,7 @@ void renderProjectionImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PG
       int pidx1 = i;
       int pidx2 = (i+1) % npoints;
       Point p1 = ppoints.get(pidx1);
-      if (!p1.isBlank()) {
+      if (!p1.isBlank) {
         continue;
       }
       Point p2 = ppoints.get(pidx2);
@@ -734,7 +734,7 @@ void renderProjectionImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PG
     int pidx1 = i;
     int pidx2 = (i+1) % npoints;
     Point p1 = ppoints.get(pidx1);
-    if (p1.isBlank()) {
+    if (p1.isBlank) {
       continue;
     }
 
@@ -766,7 +766,7 @@ void renderProjectionImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PG
   // Highlight the selected point
   if (galvoPlot.selectedPointIndex >= 0 && galvoPlot.selectedPointIndex < npoints-1) {
     Point p1 = (Point)ppoints.get(galvoPlot.selectedPointIndex);
-    if (p1.isBlank()) {
+    if (p1.isBlank) {
       g.stroke(255,255,255,240);
       g.fill(0,0,0, 192);
     }
@@ -1020,28 +1020,30 @@ class Button {
 class Point {
   public float x, y;
   color col;
+  Boolean isBlank;
   public Boolean selected = false;
 
   Point(float _x, float _y, float r, float g, float b) {
     this.x = _x;
     this.y = _y;
     this.col = color(r, g, b);
+    this.isBlank = this.isBlank();
   }
   
   Point(float _x, float _y) {
     this.x = _x;
     this.y = _y;
     this.col = color(0);
+    this.isBlank = true;
   }
   Point(float _x, float _y, color _col) {
     this.x = _x;
     this.y = _y;
     this.col = _col;
+    this.isBlank = this.isBlank();
   }
 
-
-  public Boolean isBlank() {
-    //return (this.r < 1 && this.g < 1 && this.b < 1);
+  private Boolean isBlank() {
     return (red(col) == 0 && green(col) == 0 && blue(col) == 0);
   }
 

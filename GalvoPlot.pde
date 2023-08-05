@@ -134,7 +134,7 @@ class GalvoPlot {
           }
           break;
         case Region.DWELL:
-          if ((points.get(region.startIndex)).isBlank()) {
+          if ((points.get(region.startIndex)).isBlank) {
             y1 = y + pad + channelHeight * channelRankDwellBlank + 2;
             g.stroke(255,255,255,128);
             g.fill(0,0,0);
@@ -287,7 +287,7 @@ class GalvoPlot {
       for (int i = 0; i < npointsInView; i++) {
         int pidx = min(npoints-1, minIdx + i);
         Point p = points.get(pidx);
-        if (p.isBlank()) {
+        if (p.isBlank) {
           float xpos = x + w * getScreenXForIndex(pidx, cursorNormalized, zoom, npoints);
           float ypos = xplotCenterY + p.x * plotHeight/2;
           g.vertex(xpos, ypos);
@@ -303,7 +303,7 @@ class GalvoPlot {
         for (int i = 0; i < npointsInView; i++) {
           int pidx = min(npoints-1, minIdx + i);
           Point p = points.get(pidx);
-          if (!p.isBlank()) {
+          if (!p.isBlank) {
             float xpos = x + w * getScreenXForIndex(pidx, cursorNormalized, zoom, npoints);
             float ypos = xplotCenterY + p.x * plotHeight/2;
             g.stroke(p.col);
@@ -318,7 +318,7 @@ class GalvoPlot {
         for (int i = 0; i < npointsInView; i++) {
           int pidx = min(npoints-1, minIdx + i);
           Point p = points.get(pidx);
-          if (!p.isBlank()) {
+          if (!p.isBlank) {
             float xpos = x + w * getScreenXForIndex(pidx, cursorNormalized, zoom, npoints);
             float ypos = xplotCenterY + p.x * plotHeight/2 - psizeColor/2;
             g.fill(p.col);
@@ -341,7 +341,7 @@ class GalvoPlot {
       for (int i = 0; i < npointsInView; i++) {
         int pidx = min(npoints-1, minIdx + i);
         Point p = points.get(pidx);
-        if (p.isBlank()) {
+        if (p.isBlank) {
           float xpos = x + w * getScreenXForIndex(pidx, cursorNormalized, zoom, npoints);
           float ypos = yplotCenterY + p.y * plotHeight/2;
           g.vertex(xpos, ypos);
@@ -356,7 +356,7 @@ class GalvoPlot {
         for (int i = 0; i < npointsInView; i++) {
           int pidx = min(npoints-1, minIdx + i);
           Point p = points.get(pidx);
-          if (!p.isBlank()) {
+          if (!p.isBlank) {
             float xpos = x + w * getScreenXForIndex(pidx, cursorNormalized, zoom, npoints);
             float ypos = yplotCenterY + p.y * plotHeight/2;
             g.stroke(p.col);
@@ -372,7 +372,7 @@ class GalvoPlot {
         for (int i = 0; i < npointsInView; i++) {
           int pidx = min(npoints-1, minIdx + i);
           Point p = points.get(pidx);
-          if (!p.isBlank()) {
+          if (!p.isBlank) {
             float xpos = x + w * getScreenXForIndex(pidx, cursorNormalized, zoom, npoints);
             float ypos = yplotCenterY + p.y * plotHeight/2 - psizeColor/2;
             g.fill(p.col);
@@ -392,7 +392,7 @@ class GalvoPlot {
         Point p = points.get(pidx);
         float xpos = x + i * w / npointsInView;
         float ypos = xplotCenterY + p.x * plotHeight/2;
-        if (p.isBlank()) {
+        if (p.isBlank) {
           g.strokeWeight(psizeBlank);
           g.stroke(160);
         }
@@ -409,7 +409,7 @@ class GalvoPlot {
         Point p = points.get(pidx);
         float xpos = x + i * w / npointsInView;
         float ypos = yplotCenterY + p.y * plotHeight/2;
-        if (p.isBlank()) {
+        if (p.isBlank) {
           g.strokeWeight(psizeBlank);
           g.stroke(160);
         }

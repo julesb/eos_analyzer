@@ -19,13 +19,13 @@ class FrameAnalyzer {
       pNext = (i < npoints-1)? points.get(i+1) : null;
       p = points.get(i);
 
-      if (p.isBlank()) {
+      if (p.isBlank) {
         // blank start
-        if (i==0 || !pPrev.isBlank()) {
+        if (i==0 || !pPrev.isBlank) {
           blankStartIndex = i;
         }
         // blank end
-        if (blankStartIndex>=0 && (i >= npoints-1 || !pNext.isBlank())) {
+        if (blankStartIndex>=0 && (i >= npoints-1 || !pNext.isBlank)) {
           blankEndIndex = i;
           if (blankStartIndex >= 0) {
             Region r = new Region(Region.BLANK, blankStartIndex, blankEndIndex);
@@ -41,11 +41,11 @@ class FrameAnalyzer {
       }
       else {
         // path start
-        if (i==0 || pPrev.isBlank()) { 
+        if (i==0 || pPrev.isBlank) { 
           pathStartIndex = i;
         }
         // path end
-        if (pathStartIndex>=0 &&  (i >= npoints-1 || pNext.isBlank())) {
+        if (pathStartIndex>=0 &&  (i >= npoints-1 || pNext.isBlank)) {
           pathEndIndex = i;
           if (pathStartIndex >= 0) {
             Region r = new Region(Region.PATH, pathStartIndex, pathEndIndex);
