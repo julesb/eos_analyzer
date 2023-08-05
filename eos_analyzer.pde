@@ -442,7 +442,7 @@ void drawSelectionInfoPanel(int x, int y, int w, int h, ArrayList<Point> points,
   }
   else {
     noStroke();
-    fill(selectedPoint.r, selectedPoint.g, selectedPoint.b);
+    fill(selectedPoint.col);
     rect(xpos+margin, ypos+margin, colorw-2*margin, colorh-2*margin);
   }
 
@@ -457,7 +457,9 @@ void drawSelectionInfoPanel(int x, int y, int w, int h, ArrayList<Point> points,
   text(posStr, textx, texty);
   
   String colorStr = String.format("color: %02X%02X%02X",
-      (int)selectedPoint.r, (int)selectedPoint.g, (int)selectedPoint.b);
+                                  (int)red(selectedPoint.col),
+                                  (int)green(selectedPoint.col),
+                                  (int)blue(selectedPoint.col));
   texty = textOriginY + rowCount++ * rowHeight;
   text(colorStr, textx, texty);
 
@@ -495,7 +497,7 @@ void drawSelectionInfoPanel(int x, int y, int w, int h, ArrayList<Point> points,
     drawStr = "";
   }
   textx = xpos+margin*2;
-  texty = textOriginY+3; // + rowCount * rowHeight;
+  texty = textOriginY+3;
   text("draw", textx, texty);
   texty += rowHeight;
   text(drawStr, textx, texty);
@@ -517,12 +519,12 @@ void drawSelectionInfoPanel(int x, int y, int w, int h, ArrayList<Point> points,
     blankStr = "";
   }
   textx = xpos+margin*3+buttonWidth*1;
-  texty = textOriginY+3; // + rowCount * rowHeight;
+  texty = textOriginY+3;
   text("blank", textx, texty);
   texty += rowHeight;
   text(blankStr, textx, texty);
   
-  // DWELL Indicato
+  // DWELL Indicator
   String dwellStr;
   if (isDwell) {
     stroke(255,255,255,192);
@@ -742,7 +744,7 @@ void renderProjectionImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PG
       continue;
     }
 
-    g.stroke(p1.r, p1.g, p1.b, 240);
+    g.stroke(p1.col, 240);
     g.vertex(p1.x*sx, p1.y*sy);
     g.vertex(p2.x*sx, p2.y*sy);
   }
@@ -757,7 +759,7 @@ void renderProjectionImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PG
   
     Point p = ppoints.get(r.startIndex);
     g.strokeWeight(10);
-    g.stroke(p.r, p.g, p.b, 128);
+    g.stroke(p.col, 128);
     g.point(p.x*sx, p.y*sy);
   }
 
@@ -770,7 +772,7 @@ void renderProjectionImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PG
     }
     else {
       g.stroke(255,255,255,240);
-      g.fill(p1.r, p1.b, p1.b, 192);
+      g.fill(p1.col, 192);
     }
     g.strokeWeight(2);
     g.ellipse(p1.x*sx, p1.y*sy, 25, 25);
@@ -909,7 +911,6 @@ void oscEvent(OscMessage message) {
 
       Point point = new Point(x / 32767.5 - 1, y / 32767.5 - 1, r, g, b);
       pointList.add(point);
-      //println("["+(i+1)+"/"+numPoints+"]\t"+ point.toString());
     }
     points = pointList;
     frameDirty = true;
@@ -990,7 +991,7 @@ class Button {
     text(label, x + w/2 - textWidth(label)/2, y+h/2+10);
 
     if (state) {
-      fill(red(onTextcolor), green(onTextcolor), blue(onTextcolor), 8);
+      fill(onTextcolor, 8);
       rect(x, y, w, h, 10);
     }
   }
@@ -1017,34 +1018,36 @@ class Button {
 
 
 class Point {
-  public float x, y, r, g, b;
-  public PointInfo info;
+  public float x, y;
+  color col;
   public Boolean selected = false;
 
-  Point(float _x, float _y, float _r, float _g, float _b) {
+  Point(float _x, float _y, float r, float g, float b) {
     this.x = _x;
     this.y = _y;
-    this.r = _r;
-    this.g = _g;
-    this.b = _b;
+    this.col = color(r, g, b);
   }
   
   Point(float _x, float _y) {
     this.x = _x;
     this.y = _y;
-    this.r = 0;
-    this.g = 0;
-    this.b = 0;
+    this.col = color(0);
   }
+  Point(float _x, float _y, color _col) {
+    this.x = _x;
+    this.y = _y;
+    this.col = _col;
+  }
+
+
   public Boolean isBlank() {
-    float eps = 0.0001;
-    //return (this.r < eps && this.g < eps && this.b < eps);
-    return (this.r < 1 && this.g < 1 && this.b < 1);
+    //return (this.r < 1 && this.g < 1 && this.b < 1);
+    return (red(col) == 0 && green(col) == 0 && blue(col) == 0);
   }
 
   public String toString() {
     return String.format("[% .4f, % .4f]\t[%.4f, %.4f, %.4f]", 
-      x, y, r, g, b);
+      x, y, red(col), green(col), blue(col));
   }
   public float dist(Point other) {
       Point d = this.sub(other);
@@ -1062,7 +1065,7 @@ class Point {
     return (this.x == p.x && this.y == p.y);
   }
   public Boolean colorEqual(Point p) {
-    return (this.r == p.r && this.g == p.g && this.b == p.b);
+    return (this.col == p.col);
   }
   public Boolean identical(Point p) {
     return this.posEqual(p) && this.colorEqual(p);
@@ -1094,27 +1097,28 @@ class Rect {
   }
 }
 
-class PointInfo {
-  Boolean frameStart=false;
-  Boolean frameEnd=false;
-  Boolean blankDwell = false;
-  Boolean dwell = false;
-  Boolean pathBegin = false;
-  Boolean pathEnd = false;
-  Boolean travelStart = false;
-  Boolean isBlank = false;
-  public PointInfo() {
-
-  }
-  
-  public String toString() {
-    return String.format("f0: %s, f1: %s, dwb: %s, dwc: %s, p0: %s, p1: %s, trav: %s",
-        frameStart, frameEnd, blankDwell, dwell, pathBegin, pathEnd, travelStart);
-  } 
-}
 
 //
 // Here lies the graveyard of code
+//
+// class PointInfo {
+//   Boolean frameStart=false;
+//   Boolean frameEnd=false;
+//   Boolean blankDwell = false;
+//   Boolean dwell = false;
+//   Boolean pathBegin = false;
+//   Boolean pathEnd = false;
+//   Boolean travelStart = false;
+//   Boolean isBlank = false;
+//   public PointInfo() {
+//
+//   }
+//   
+//   public String toString() {
+//     return String.format("f0: %s, f1: %s, dwb: %s, dwc: %s, p0: %s, p1: %s, trav: %s",
+//         frameStart, frameEnd, blankDwell, dwell, pathBegin, pathEnd, travelStart);
+//   } 
+// }
 //
 // void renderGalvoPathCombinedImg(ArrayList ppoints, PGraphics g) {
 //   int npoints = ppoints.size();

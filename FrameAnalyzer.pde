@@ -74,8 +74,7 @@ class FrameAnalyzer {
           if (i - dwellStartIndex > 0) {
             dwellEndIndex = i;
             Region r = new Region(Region.DWELL, dwellStartIndex, dwellEndIndex);
-            int[] c = { (int)p.r, (int)p.g, (int)p.b };
-            r.col = c;
+            r.col = p.col;
             //println(String.format("ADD REGION [i=%d]: %s", i, r.toString()));
             newregions.add(r);
             dwellStartIndex = -1;
@@ -119,8 +118,7 @@ class Region {
   int startIndex, endIndex;
   int type;
   int pointCount = 0;
-  int[] col = {0,0,0}; // for dwell only
-
+  color col = color(0);
   Boolean selected = false;
 
   public Region() {}

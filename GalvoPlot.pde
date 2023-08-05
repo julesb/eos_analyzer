@@ -129,7 +129,7 @@ class GalvoPlot {
           for (int pidx=region.startIndex; pidx <= region.endIndex; pidx++) {
             Point p1 = points.get(pidx);
             float px = x + w * getScreenXForIndex(pidx, cursorNormalized, zoom, npoints);
-            g.fill(p1.r, p1.g, p1.b, 160);
+            g.fill(p1.col, 160);
             g.rect(px, y1, pathSegmentW, channelHeight/2);
           }
           break;
@@ -142,7 +142,7 @@ class GalvoPlot {
           }
           else {
             y1 = y + pad + channelHeight * channelRankDwellColor + 2;
-            g.fill(region.col[0],region.col[1],region.col[2],192);
+            g.fill(region.col,192);
             g.noStroke();
             g.rect(x1, y1, zoom<5?xw:xw-2, channelHeight - 6);
           }
@@ -306,7 +306,7 @@ class GalvoPlot {
           if (!p.isBlank()) {
             float xpos = x + w * getScreenXForIndex(pidx, cursorNormalized, zoom, npoints);
             float ypos = xplotCenterY + p.x * plotHeight/2;
-            g.stroke(p.r, p.g, p.b, 255);
+            g.stroke(p.col);
             g.vertex(xpos, ypos);
           }
         }
@@ -321,7 +321,7 @@ class GalvoPlot {
           if (!p.isBlank()) {
             float xpos = x + w * getScreenXForIndex(pidx, cursorNormalized, zoom, npoints);
             float ypos = xplotCenterY + p.x * plotHeight/2 - psizeColor/2;
-            g.fill(p.r, p.g, p.b, 255);
+            g.fill(p.col);
             g.vertex(xpos, ypos);
             g.vertex(xpos+psizeColor, ypos);
             g.vertex(xpos+psizeColor, ypos+psizeColor);
@@ -359,7 +359,7 @@ class GalvoPlot {
           if (!p.isBlank()) {
             float xpos = x + w * getScreenXForIndex(pidx, cursorNormalized, zoom, npoints);
             float ypos = yplotCenterY + p.y * plotHeight/2;
-            g.stroke(p.r, p.g, p.b, 255);
+            g.stroke(p.col);
             g.vertex(xpos, ypos);
           }
         }
@@ -375,7 +375,7 @@ class GalvoPlot {
           if (!p.isBlank()) {
             float xpos = x + w * getScreenXForIndex(pidx, cursorNormalized, zoom, npoints);
             float ypos = yplotCenterY + p.y * plotHeight/2 - psizeColor/2;
-            g.fill(p.r, p.g, p.b, 255);
+            g.fill(p.col);
             g.vertex(xpos, ypos);
             g.vertex(xpos+psizeColor, ypos);
             g.vertex(xpos+psizeColor, ypos+psizeColor);
@@ -398,7 +398,7 @@ class GalvoPlot {
         }
         else {
           g.strokeWeight(psizeColor);
-          g.stroke(p.r, p.g, p.b, 255);
+          g.stroke(p.col);
         }
         g.point(xpos, ypos);
       }
@@ -415,7 +415,7 @@ class GalvoPlot {
         }
         else {
           g.strokeWeight(psizeColor);
-          g.stroke(p.r, p.g, p.b, 255);
+          g.stroke(p.col);
         }
         g.point(xpos, ypos);
       }
