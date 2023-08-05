@@ -473,60 +473,69 @@ void drawSelectionInfoPanel(int x, int y, int w, int h, ArrayList<Point> points,
   stroke(255,255,255,64);
   noFill();
   
-  if (isPath || isDwell) {
+  // DRAW Indicator
+  String drawStr;
+  if (pathLength > 0 && (isPath || isDwell)) {
     stroke(255,255,255,192);
     noFill();
     rect(xpos+margin*1, ypos+colorh+margin, buttonWidth, buttonHeight);
     fill(255,255,255,240);
+    drawStr = String.format("%d", pathLength);
   }
   else {
     stroke(255,255,255,64);
     noFill();
     rect(xpos+margin*1, ypos+colorh+margin, buttonWidth, buttonHeight);
     fill(255,255,255,64);
+    drawStr = "";
   }
   textx = xpos+margin*2;
   texty = textOriginY+3; // + rowCount * rowHeight;
   text("draw", textx, texty);
-  String drawStr = (isPath || isDwell)? String.format("%d", pathLength) : "";
   texty += rowHeight;
   text(drawStr, textx, texty);
 
-  if (isBlank && !isDwell) {
+  // BLANK Indicator
+  String blankStr;
+  if (isBlank) {
     stroke(255,255,255,192);
     noFill();
     rect(xpos+margin*2+buttonWidth, ypos+colorh+margin, buttonWidth, buttonHeight);
     fill(255,255,255,240);
+    blankStr = String.format("%d", blankLength);
   }
   else {
     stroke(255,255,255,64);
     noFill();
     rect(xpos+margin*2+buttonWidth, ypos+colorh+margin, buttonWidth, buttonHeight);
     fill(255,255,255,64);
+    blankStr = "";
   }
   textx = xpos+margin*3+buttonWidth*1;
   texty = textOriginY+3; // + rowCount * rowHeight;
   text("blank", textx, texty);
-  String blankStr = (isBlank && !isDwell)? String.format("%d", blankLength) : "";
   texty += rowHeight;
   text(blankStr, textx, texty);
   
+  // DWELL Indicato
+  String dwellStr;
   if (isDwell) {
     stroke(255,255,255,192);
     noFill();
     rect(xpos+margin*3+buttonWidth*2, ypos+colorh+margin, buttonWidth, buttonHeight);
     fill(255,255,255,240);
+    dwellStr = String.format("%d", dwellLength);
   }
   else {
     stroke(255,255,255,64);
     noFill();
     rect(xpos+margin*3+buttonWidth*2, ypos+colorh+margin, buttonWidth, buttonHeight);
     fill(255,255,255,64);
+    dwellStr = "";
   }
   textx = xpos+margin*4+buttonWidth*2;
   texty = textOriginY+3; // + rowCount * rowHeight;
   text("dwell", textx, texty);
-  String dwellStr = (isDwell)? String.format("%d", dwellLength) : "";
   texty += rowHeight;
   text(dwellStr, textx, texty);
 }
