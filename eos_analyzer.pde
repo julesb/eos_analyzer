@@ -12,12 +12,6 @@ import java.util.zip.DataFormatException;
   - Draw a little arrow to show travel direction on the frame start
     indicator in projection view.
 
-  - Add a new layout panel to contain point info panel, app FPS,
-    frame counter, receive indicator etc.
-    - Receiving / Snapshot mode indicator.
-    - Frame counter with "click to reset" action.
-    - Display app FPS, distinct from network FPS.
-
   - Create a visualization for each point of the direction change angle
     to reach the next point. Map angle (0 - 180deg) => Color intensity.
     
@@ -99,11 +93,11 @@ int padding = 20;
 
 int buttonWidth = 200;
 int buttonHeight = 40;
-Button receiveButton    = new Button("Receive",       0, 0, buttonWidth, buttonHeight);
-Button oscframesButton  = new Button("F: 000000",     0, 0, buttonWidth, buttonHeight);
-Button renderModeButton = new Button("Shape",         0, 0, buttonWidth, buttonHeight);
-Button uncapButton      = new Button("Uncap",         0, 0, buttonWidth, buttonHeight);
-Button fitwidthButton   = new Button("Fit width",     0, 0, buttonWidth, buttonHeight);
+Button receiveButton    = new Button("Receive",   0, 0, buttonWidth, buttonHeight);
+Button oscframesButton  = new Button("000000", 0, 0, buttonWidth, buttonHeight);
+Button renderModeButton = new Button("Shape",     0, 0, buttonWidth, buttonHeight);
+Button uncapButton      = new Button("Uncap",     0, 0, buttonWidth, buttonHeight);
+Button fitwidthButton   = new Button("Fit",       0, 0, buttonWidth, buttonHeight);
 
 int widthPrev, heightPrev;
 
@@ -158,14 +152,14 @@ void setup() {
 
   analyzer = new FrameAnalyzer();
 
-  fpsHistory     = new HistoryPlot("FPS",      historyLength, 0.0, 240.0,  5, "int", "");
-  pointsHistory  = new HistoryPlot("Points",   historyLength, 0.0, 4096.0, 1, "int", "");
-  ppsHistory     = new HistoryPlot("PPS",      historyLength, 0.0, 360.0,  5, "int", "k");
-  pathsHistory   = new HistoryPlot("Paths",    historyLength, 0.0, 100.0,  1, "int", "");
-  distHistory    = new HistoryPlot("Dsum",     historyLength, 0.0, 120.0,  5, "float", "k");
-  maxdistHistory = new HistoryPlot("Dmax",     historyLength, 0.0, 5800.0, 1, "int", "");
-  bcRatioHistory = new HistoryPlot("C/D",      historyLength, 0.0, 1.0,    5, "float", "");
-  bitrateHistory = new HistoryPlot("Net",      historyLength, 0.0, 10.0, 5, "float", "Mbps");
+  fpsHistory     = new HistoryPlot("FPS",    historyLength, 0.0, 240.0,  5, "int", "");
+  pointsHistory  = new HistoryPlot("Points", historyLength, 0.0, 4096.0, 1, "int", "");
+  ppsHistory     = new HistoryPlot("PPS",    historyLength, 0.0, 360.0,  5, "int", "k");
+  pathsHistory   = new HistoryPlot("Paths",  historyLength, 0.0, 100.0,  1, "int", "");
+  distHistory    = new HistoryPlot("Dsum",   historyLength, 0.0, 120.0,  5, "float", "k");
+  maxdistHistory = new HistoryPlot("Dmax",   historyLength, 0.0, 5800.0, 1, "int", "");
+  bcRatioHistory = new HistoryPlot("C/D",    historyLength, 0.0, 1.0,    5, "float", "");
+  bitrateHistory = new HistoryPlot("Net",    historyLength, 0.0, 10.0, 5, "float", "Mbps");
   
   plots.add(fpsHistory);
   plots.add(pointsHistory);
@@ -184,7 +178,7 @@ void setup() {
   // Configure buttons
   receiveButton.isToggle = true;
   receiveButton.state = !snapshotModeEnabled;
-
+  oscframesButton.state = true;
   renderModeButton.isToggle = true;
   renderModeButton.state = true;
   uncapButton.isToggle = true;
@@ -225,9 +219,10 @@ void draw() {
   if (oscframesButton.clicked()) {
     oscFrameCount = 0;
   }
-  oscframesButton.label = String.format("osc: %08d", oscFrameCount);
+  oscframesButton.label = String.format("%08d", oscFrameCount);
   if (receiveButton.clicked()) {
     setSnapshotMode(!receiveButton.state);
+    oscframesButton.state = receiveButton.state;
   }
   if (renderModeButton.clicked()) {
     galvoPlot.shapeRender = renderModeButton.state;  
@@ -339,6 +334,7 @@ void drawStatusPanel(int x, int y, int w, int h,
   int infoPanelHeight = 180;
   int bcount = 0;
   int vstep = buttonHeight+pad;
+  int vstart = y + h - infoPanelHeight - vstep*7;
 
   fill(0);
   strokeWeight(1);
@@ -346,17 +342,17 @@ void drawStatusPanel(int x, int y, int w, int h,
   rect(x, y, w, h);
 
   // Draw buttons
-  oscframesButton.draw (x+pad*2, y+pad*2 + vstep * bcount++);
-  receiveButton.draw   (x+pad*2, y+pad*3 + vstep * bcount++);
-  uncapButton.draw     (x+pad*2, y+pad*4 + vstep * bcount++);
-  renderModeButton.draw(x+pad*2, y+pad*5 + vstep * bcount++);
-  fitwidthButton.draw  (x+pad*2, y+pad*6 + vstep * bcount++);
+  receiveButton.draw   (x+pad*2, vstart+pad*4 + vstep * bcount++);
+  uncapButton.draw     (x+pad*2, vstart+pad*5 + vstep * bcount++);
+  renderModeButton.draw(x+pad*2, vstart+pad*6 + vstep * bcount++);
+  fitwidthButton.draw  (x+pad*2, vstart+pad*7 + vstep * bcount++);
+  oscframesButton.draw (x+pad*2, vstart+pad*8 + vstep * bcount++);
 
   bcount+=2;
 
   // Draw debug info
   fill(192);
-  textSize(32);
+  textSize(24);
   float vpw = 1.0 / galvoPlot.zoom;
   float vpMin = galvoPlot.cursorNormalized * vpw;
   float vpMax = galvoPlot.cursorNormalized + vpw / 2.0 / galvoPlot.zoom;
@@ -727,7 +723,7 @@ void renderProjectionImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PG
     g.endShape();
   }
 
-  g.strokeWeight(5);
+  g.strokeWeight(4);
   g.beginShape(LINES);
 
   for (int i = 0; i < npoints; i++) {
@@ -744,7 +740,7 @@ void renderProjectionImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PG
       continue;
     }
 
-    g.stroke(p1.col, 240);
+    g.stroke(p1.col, 128);
     g.vertex(p1.x*sx, p1.y*sy);
     g.vertex(p2.x*sx, p2.y*sy);
   }
@@ -785,12 +781,13 @@ void renderProjectionImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PG
   // g.ellipse(projScreenCursor.x, projScreenCursor.y, 25, 25);
   
 
-  // highlight first point in frame
-  Point p1 = (Point)ppoints.get(0);
-  g.stroke(0, 255, 0);
-  g.fill(0, 255,0);
-  g.ellipse(p1.x*sx, p1.y*sy, 10, 10);
-
+  if (showBlankLines) {
+    // highlight first point in frame
+    Point p1 = (Point)ppoints.get(0);
+    g.stroke(0, 255, 0);
+    g.fill(0, 255,0);
+    g.ellipse(p1.x*sx, p1.y*sy, 10, 10);
+  }
   g.popMatrix();
   g.endDraw();
 }
@@ -848,11 +845,11 @@ void keyPressed() {
 }
 
 void mouseClicked() {
-  if (mouseY > height - galvoPlotHeight) {
-    galvoPlot.fitToWidth = !galvoPlot.fitToWidth;
-    updateScreenRects();
-    println("galvoPlot.fitToWidth: ", galvoPlot.fitToWidth);
-  }
+  // if (mouseY > height - galvoPlotHeight) {
+  //   galvoPlot.fitToWidth = !galvoPlot.fitToWidth;
+  //   updateScreenRects();
+  //   println("galvoPlot.fitToWidth: ", galvoPlot.fitToWidth);
+  // }
 }
 
 void mouseWheel(MouseEvent event) {
@@ -938,7 +935,7 @@ class Button {
   //color onTextcolor = color(128,240,32,255);
   color onTextcolor = color(192,238,1,255);
   //color onTextcolor = color(57,255,20,255); // neon green
-  color hoverColor  = color(255,255,255,16);
+  color hoverColor  = color(255,255,255,32);
   color onFillcolor = color(255,255,255,16);
   Boolean isToggle = false;
   Boolean state = false;
