@@ -2,6 +2,7 @@ import oscP5.*;
 import netP5.*;
 import java.util.zip.Inflater;
 import java.util.zip.DataFormatException;
+import org.apache.commons.math4.transform.*;
 
 /*
   TODO:
@@ -67,6 +68,10 @@ Rect galvoPlotScreenRect = new Rect(0, 0, 1024, galvoPlotHeight);
 int statusPanelWidth = 300;
 Rect statusPanelScreenRect; 
 
+int spectrumPlotHeight = 300; // will be recalculated
+Rect spectrumScreenRect = new Rect(0,0,1024,1024);
+
+
 Boolean frameDirty = true;
 ArrayList<Point> points;
 Point prevFrameFinalPoint;
@@ -86,6 +91,8 @@ HistoryPlot smoothPoints;
 ArrayList<HistoryPlot> plots = new ArrayList();
 
 FrameAnalyzer analyzer;
+FrequencyAnalyzer freqAnalyzer;
+
 
 int oscFrameCount = 0;
 
@@ -125,7 +132,13 @@ void updateScreenRects() {
   statusPanelScreenRect.x = projScreenRect.w+padding*2;
   statusPanelScreenRect.y = padding;
   statusPanelScreenRect.w = statusPanelWidth;
-  statusPanelScreenRect.h = height - galvoPlotScreenRect.h - 2*padding;
+  statusPanelScreenRect.h = height - galvoPlotScreenRect.h - 4*padding - spectrumPlotHeight;
+
+  spectrumPlotHeight = (height - galvoPlotScreenRect.h) / 3;
+  spectrumScreenRect.x = projScreenRect.x+projScreenRect.w+padding;
+  spectrumScreenRect.y = height-galvoPlotHeight - padding - spectrumPlotHeight;
+  spectrumScreenRect.w = width - 2*padding - projScreenRect.w;
+  spectrumScreenRect.h = spectrumPlotHeight;
 }
 
 void setup() {
@@ -151,6 +164,7 @@ void setup() {
   noLoop();
 
   analyzer = new FrameAnalyzer();
+  freqAnalyzer = new FrequencyAnalyzer(4096);
 
   fpsHistory     = new HistoryPlot("FPS",    historyLength, 0.0, 240.0,  5, "int", "");
   pointsHistory  = new HistoryPlot("Points", historyLength, 0.0, 4096.0, 1, "int", "");
@@ -202,6 +216,8 @@ void draw() {
   
   ArrayList<Point> lpoints = new ArrayList(points);
   ArrayList<Region> lregions = analyzer.getRegions(lpoints);
+
+  freqAnalyzer.update(lpoints);
   
   int mx = mouseX, my = mouseY; 
   updateCursors(mx, my, lpoints);
@@ -272,6 +288,13 @@ void draw() {
                   statusPanelScreenRect.h,
                   lpoints, regionsAtSelection);
 
+  freqAnalyzer.draw(  
+        spectrumScreenRect.x,
+        spectrumScreenRect.y,
+        spectrumScreenRect.w,
+        spectrumScreenRect.h);
+
+
   checkMouse();
 
   // Update and draw history plots
@@ -312,7 +335,7 @@ void draw() {
   drawPlotsLayout(projScreenRect.w + statusPanelScreenRect.w+plotMargin*3,
                   1,
                   width-projScreenRect.w - statusPanelScreenRect.w -plotMargin*3,
-                  height-galvoPlotHeight-plotMargin*2+1,
+                  height-galvoPlotHeight-plotMargin*3 - spectrumPlotHeight,
                   plotRows, plotCols);
 
   prevFrameFinalPoint = lpoints.get(npoints-1);
@@ -348,7 +371,9 @@ void drawStatusPanel(int x, int y, int w, int h,
   fitwidthButton.draw  (x+pad*2, vstart+pad*7 + vstep * bcount++);
   oscframesButton.draw (x+pad*2, vstart+pad*8 + vstep * bcount++);
 
-  bcount+=2;
+  // reset for text
+  bcount=1;
+  vstep = 30;
 
   // Draw debug info
   fill(192);
@@ -853,10 +878,15 @@ void mouseClicked() {
 }
 
 void mouseWheel(MouseEvent event) {
+  float e = event.getCount();
   if (galvoPlotScreenRect.containsPoint(mouseX, mouseY)) {
-    float e = event.getCount();
     galvoPlot.zoomVelocity += -e * galvoPlot.zoom / 200;
   }
+
+  if(spectrumScreenRect.containsPoint(mouseX, mouseY)) {
+    freqAnalyzer.zoomVelocity += -e * freqAnalyzer.zoom / 200.0;
+  }
+
 }
 
 void mouseDragged() {
@@ -1232,6 +1262,3 @@ class Rect {
 //    redraw();
 //  }
 //}
-
-
-
