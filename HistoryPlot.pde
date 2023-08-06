@@ -51,6 +51,8 @@ class HistoryPlot {
     int indicatorWidth = 50;
     int valueOffset = 120;
     int w2 = w - indicatorWidth;
+    color plotColor = color(255,255,255,128); // neon green
+    color needleColor = color(192,238,1,255);
     strokeWeight(1);
     stroke(borderColor);
     fill(8,255);
@@ -109,7 +111,7 @@ class HistoryPlot {
 
     strokeWeight(1.5);
     for (int i = 0; i < w2; i++) {
-      int hidx = (int)(currentIndex + (float)i / w2 * historyLength) % historyLength;
+      int hidx = (int)(currentIndex+1 + (float)i / w2 * historyLength) % historyLength;
       if (hidx < 0) continue;
       xpos = x + i;
       float val = values[hidx];
@@ -121,7 +123,7 @@ class HistoryPlot {
         stroke(255,0,0);
       }
       else {
-        stroke(255,255,255,160);
+        stroke(plotColor);
       }
       point(xpos, ypos);
     }
@@ -152,19 +154,17 @@ class HistoryPlot {
     
     strokeWeight(4);
     stroke(255,255,255,255);
-    line(x+w - indicatorWidth+2, bavgy, x+w-indicatorWidth+12, bavgy);
+    line(x+w - indicatorWidth+3, bavgy, x+w-indicatorWidth+12, bavgy);
 
     // needle
+    stroke(needleColor);
     strokeWeight(1);
-    stroke(255,255,255,255);
     line(x+w - indicatorWidth*3/4, ypos, x+w-2, ypos);
     
     strokeWeight(3);
-    stroke(255,255,255,255);
     line(x+w - indicatorWidth/2, ypos, x+w-2, ypos);
     
     strokeWeight(5);
-    stroke(255,255,255);
     line(x+w-indicatorWidth/4, ypos, x+w-2, ypos);
     //line(xpos-10, ypos, xpos, ypos);
 
@@ -175,7 +175,7 @@ class HistoryPlot {
 
     // indicator separator
     strokeWeight(1);
-    stroke(255,255,255,192);
+    stroke(255,255,255,64);
     line(x+w - indicatorWidth, y, x+w - indicatorWidth, y+h);
 
   // graduations
