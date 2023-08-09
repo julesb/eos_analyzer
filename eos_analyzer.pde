@@ -132,12 +132,17 @@ void updateScreenRects() {
   statusPanelScreenRect.x = projScreenRect.w+padding*2;
   statusPanelScreenRect.y = padding;
   statusPanelScreenRect.w = statusPanelWidth;
-  statusPanelScreenRect.h = height - galvoPlotScreenRect.h - 4*padding - spectrumPlotHeight;
+  statusPanelScreenRect.h = height - galvoPlotScreenRect.h - 2*padding; // - spectrumPlotHeight;
 
   spectrumPlotHeight = (height - galvoPlotScreenRect.h) / 3;
-  spectrumScreenRect.x = projScreenRect.x+projScreenRect.w+padding;
+  spectrumScreenRect.x = projScreenRect.x
+                       + projScreenRect.w
+                       + statusPanelScreenRect.w
+                       + padding*2;
   spectrumScreenRect.y = height-galvoPlotHeight - padding - spectrumPlotHeight;
-  spectrumScreenRect.w = width - 2*padding - projScreenRect.w;
+  spectrumScreenRect.w = width - 4*padding
+                       - projScreenRect.w
+                       - statusPanelScreenRect.w;
   spectrumScreenRect.h = spectrumPlotHeight;
 }
 
@@ -277,23 +282,33 @@ void draw() {
   //      galvoPlotScreenRect.h);
     
   // Draw galvo plot image
-  galvoPlot.draw(galvoPlotScreenRect.x,
-                 galvoPlotScreenRect.y,
-                 galvoPlotScreenRect.w,
-                 galvoPlotScreenRect.h);
+  galvoPlot.draw(
+    galvoPlotScreenRect.x,
+    galvoPlotScreenRect.y,
+    galvoPlotScreenRect.w,
+    galvoPlotScreenRect.h);
 
-  drawStatusPanel(statusPanelScreenRect.x,
-                  statusPanelScreenRect.y,
-                  statusPanelScreenRect.w,
-                  statusPanelScreenRect.h,
-                  lpoints, regionsAtSelection);
+  drawStatusPanel(
+    statusPanelScreenRect.x,
+    statusPanelScreenRect.y,
+    statusPanelScreenRect.w,
+    statusPanelScreenRect.h,
+    lpoints, regionsAtSelection);
 
   freqAnalyzer.draw(  
-        spectrumScreenRect.x,
-        spectrumScreenRect.y,
-        spectrumScreenRect.w,
-        spectrumScreenRect.h);
+    spectrumScreenRect.x,
+    spectrumScreenRect.y,
+    spectrumScreenRect.w,
+    spectrumScreenRect.h);
 
+  if (spectrumScreenRect.containsPoint(mouseX, mouseY)) {
+    freqAnalyzer.drawCursor(
+      spectrumScreenRect.x,
+      spectrumScreenRect.y,
+      spectrumScreenRect.w,
+      spectrumScreenRect.h,
+      mouseX - spectrumScreenRect.x);
+  }
 
   checkMouse();
 
@@ -392,6 +407,7 @@ void drawStatusPanel(int x, int y, int w, int h,
                     getViewportMin(galvoPlot.cursorNormalized, galvoPlot.zoom));
   String vpmaxTxt = String.format("VPmax: %.2f",
                      getViewportMax(galvoPlot.cursorNormalized, galvoPlot.zoom));
+  String fpsTxt = String.format("fps: %d", (int)frameRate);
 
   text(selTxt,    x+pad*2, y + vstep * bcount++);
   text(zoomTxt,   x+pad*2, y + vstep * bcount++);
@@ -399,6 +415,7 @@ void drawStatusPanel(int x, int y, int w, int h,
   text(vpwTxt,    x+pad*2, y + vstep * bcount++);
   text(vpminTxt,  x+pad*2, y + vstep * bcount++);
   text(vpmaxTxt,  x+pad*2, y + vstep * bcount++);
+  text(fpsTxt,    x+pad*2, y + vstep * bcount++);
 
   // Draw selection info panel
   drawSelectionInfoPanel(x+pad, y+h-180-pad, 280, infoPanelHeight,
@@ -765,7 +782,7 @@ void renderProjectionImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PG
       continue;
     }
 
-    g.stroke(p1.col, 128);
+    g.stroke(p1.col, 192);
     g.vertex(p1.x*sx, p1.y*sy);
     g.vertex(p2.x*sx, p2.y*sy);
   }
@@ -779,8 +796,8 @@ void renderProjectionImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PG
     }
   
     Point p = ppoints.get(r.startIndex);
-    g.strokeWeight(10);
-    g.stroke(p.col, 128);
+    g.strokeWeight(6);
+    g.stroke(p.col, 192);
     g.point(p.x*sx, p.y*sy);
   }
 
@@ -850,6 +867,14 @@ void keyTyped() {
       break;
     case 'b':
       showBlankLines = !showBlankLines;
+      break;
+    case 'g':
+      freqAnalyzer.gamma -= 0.01;
+      println("gamma:", freqAnalyzer.gamma);
+      break;
+    case 'G':
+      freqAnalyzer.gamma += 0.01;
+      println("gamma:", freqAnalyzer.gamma);
       break;
   }
 }
