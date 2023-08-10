@@ -605,7 +605,7 @@ int findClosestPointIndex(Point target, ArrayList<Point> points) {
 
 void updateCursors(int mx, int my, ArrayList<Point> points) {
   // Update galvo plot cursor
-  if (galvoPlotScreenRect.containsPoint(mx, my)) {
+  if (galvoPlotScreenRect.containsPoint(mx, my) || galvoPlot.selectionLatched) {
     galvoPlot.updateCursor(mx, my, galvoPlotScreenRect, points);
     selectedPoint = galvoPlot.selectedPoint; 
   }
@@ -782,7 +782,7 @@ void renderProjectionImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PG
       continue;
     }
 
-    g.stroke(p1.col, 192);
+    g.stroke(p1.col, 220);
     g.vertex(p1.x*sx, p1.y*sy);
     g.vertex(p2.x*sx, p2.y*sy);
   }
@@ -797,7 +797,7 @@ void renderProjectionImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PG
   
     Point p = ppoints.get(r.startIndex);
     g.strokeWeight(6);
-    g.stroke(p.col, 192);
+    g.stroke(p.col, 220);
     g.point(p.x*sx, p.y*sy);
   }
 
@@ -895,6 +895,10 @@ void keyPressed() {
 }
 
 void mouseClicked() {
+  if (galvoPlotScreenRect.containsPoint(mouseX, mouseY)
+      || projScreenRect.containsPoint(mouseX, mouseY)) {
+    galvoPlot.selectionLatched = !galvoPlot.selectionLatched;
+  }
   // if (mouseY > height - galvoPlotHeight) {
   //   galvoPlot.fitToWidth = !galvoPlot.fitToWidth;
   //   updateScreenRects();

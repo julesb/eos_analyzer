@@ -10,7 +10,8 @@ class GalvoPlot {
   
   int selectedPointIndex = 0;
   Point selectedPoint;
-  
+  Boolean selectionLatched = false;
+
   Boolean fitToWidth = true;
   int scaledPlotWidth = 1;
 
@@ -43,7 +44,7 @@ class GalvoPlot {
     zoom += zoomVelocity;
     zoom = max(1.0, zoom);
 
-    g.beginDraw();
+    g.beginDraw() ;
     g.background(0);
     if (zoom > 1.0) {
       drawZoomIndicator(0, 0, g.width, g.height, points.size());
@@ -69,8 +70,13 @@ class GalvoPlot {
   }
 
   void updateCursor(int mx, int my, Rect screenRect, ArrayList<Point> points) {
-    float cursortmp = ((float)mx - screenRect.x) / screenRect.w;
-    setSelectedIndex((int)(cursortmp * points.size()), points);
+    if (selectionLatched) {
+      setSelectedIndex(min(selectedPointIndex, points.size()-1), points);
+    }
+    else {
+      float cursortmp = ((float)mx - screenRect.x) / screenRect.w;
+      setSelectedIndex((int)(cursortmp * points.size()), points);
+    }
   }
 
 
