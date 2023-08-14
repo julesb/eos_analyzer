@@ -11,8 +11,12 @@ class HistoryPlot {
   float bufferAvg;
   String numberFormat = "float";
   String units = "";
+  PGraphics g;
+  PShader plotShader;
+  int indicatorWidth = 50;
 
   public HistoryPlot(String name, int historyLength, float rangeMin, float rangeMax, float emaWindowSize, String numberFormat, String units) {
+    PGraphics g;
     this.name = name;
     this.historyLength = historyLength;
     this.rangeMin = rangeMin;
@@ -24,7 +28,12 @@ class HistoryPlot {
     this.expMovingAvg = 0.0;
     this.bufferAvg = 0.0;
     this.currentIndex = -1;
+    initShader();
     println("HistoryPlot: ", this.name, this.historyLength);
+  }
+
+  public void initShader() {
+    plotShader = loadShader("historyplot.glsl");
   }
 
   public void addValue(float newValue) {
@@ -45,21 +54,60 @@ class HistoryPlot {
   }
 
 
+  
+  public void drawShader(int x, int y, int w, int h) {
+    int plotw = w - indicatorWidth;
+    float ar = (float)plotw/h;
+    float[] res = { (float)plotw, (float)h };
+
+    if (this.g == null || g.width != plotw || g.height != h) {
+      g = createGraphics(plotw, h, P3D);
+    }
+
+
+    float[] valuesNormalized = new float[historyLength];
+    float pix = 1.0 / plotw; 
+    for (int i=0;i<historyLength;i++) {
+      int vidx = (currentIndex+1+i) % historyLength;
+      valuesNormalized[i] = map(values[vidx], rangeMin, rangeMax, 0.0, 1.0);
+      valuesNormalized[i] = max(pix*4, min(valuesNormalized[i], (1-pix*4)));
+    }
+
+    g.beginDraw();
+    plotShader.set("values", valuesNormalized);
+    plotShader.set("resolution", res);
+    plotShader.set("valuesindex", (float)currentIndex);
+
+    g.shader(plotShader);
+    g.beginShape(QUADS);
+    g.vertex(0, 0,  0, 0);
+    g.vertex( plotw, 0, ar, 0);
+    g.vertex( plotw,  h, ar, 1);
+    g.vertex(0,  h,  0, 1);
+    g.endShape();
+    g.endDraw();
+    
+    fill(255,255,255,255);
+    image(g, x, y, plotw, h);
+
+  }
+
   public void draw(int x, int y, int w, int h) {
     boolean clipped;
     float xpos=0, ypos=0, ylen=0;
-    int indicatorWidth = 50;
     int valueOffset = 120;
     int w2 = w - indicatorWidth;
     color plotColor = color(255,255,255,128); // neon green
     color needleColor = color(192,238,1,255);
     strokeWeight(1);
     stroke(borderColor);
-    fill(8,255);
+    // fill(8,255);
+    noFill();
     rect(x,y,w,h);
 
     fill(255,255,255,32);
     rect(x+2,y+2, 102, 40);
+
 
     fill(255,255,255);
     textSize(32);
@@ -79,54 +127,29 @@ class HistoryPlot {
     noFill();
     //stroke(255,255,255,240);
     float range = this.rangeMax - this.rangeMin;
+    float clippedVal = min(max(rangeMin, values[currentIndex]), rangeMax);
+    ylen = clippedVal / range * (h -2);
+    ypos = y + h - ylen - 1;
 
-    // int numlines = 100;
-    // for (int i = 0; i < numlines; i++) {
-    //   int hidx = (int)(currentIndex + (float)i / numlines * historyLength) % historyLength;
-    //   int hidx2 = (int)(currentIndex + (float)(i+1) / numlines * historyLength) % historyLength;
-    //   xpos = x + i* (1.0/numlines)*w2;
-    //   float xpos2 = x + (i+1) * (1.0/numlines)*w2;
+    // strokeWeight(1.5);
+    // for (int i = 0; i < w2; i++) {
+    //   int hidx = (int)(currentIndex+1 + (float)i / w2 * historyLength) % historyLength;
+    //   if (hidx < 0) continue;
+    //   xpos = x + i;
     //   float val = values[hidx];
-    //   float val2 = values[hidx2];
-    //
     //   clipped = (val < rangeMin || val > rangeMax); 
     //   float clippedVal = min(max(rangeMin, val), rangeMax);
     //   ylen = clippedVal / range * (h -2);
-    //   
-    //   float clippedVal2 = min(max(rangeMin, val2), rangeMax);
-    //   float ylen2 = clippedVal2 / range * (h -2);
-    //   
     //   ypos = y + h - ylen - 1;
-    //   float ypos2 = y + h - ylen2 - 1;
-    //
     //   if (clipped) {
     //     stroke(255,0,0);
     //   }
     //   else {
-    //     stroke(255,255,255);
+    //     stroke(plotColor);
     //   }
-    //   line(xpos, ypos, xpos2, ypos2); 
     //   point(xpos, ypos);
     // }
 
-    strokeWeight(1.5);
-    for (int i = 0; i < w2; i++) {
-      int hidx = (int)(currentIndex+1 + (float)i / w2 * historyLength) % historyLength;
-      if (hidx < 0) continue;
-      xpos = x + i;
-      float val = values[hidx];
-      clipped = (val < rangeMin || val > rangeMax); 
-      float clippedVal = min(max(rangeMin, val), rangeMax);
-      ylen = clippedVal / range * (h -2);
-      ypos = y + h - ylen - 1;
-      if (clipped) {
-        stroke(255,0,0);
-      }
-      else {
-        stroke(plotColor);
-      }
-      point(xpos, ypos);
-    }
 
     // center line
     stroke(255,255,255,16);
@@ -210,11 +233,13 @@ class HistoryPlot {
     textSize(textsize);
     text(String.format("% 4.0f%s", rangeMin, ""), xpos, yMinPos);
     text(String.format("% 4.0f%s", rangeMax, ""), xpos, yMaxPos);
-    if (this.numberFormat == "float") {
-      text(String.format("% 4.1f%s", (rangeMax-rangeMin)/2, ""), xpos, yCenterPos);
-    }
-    else {
-      text(String.format("% 4.0f%s", (rangeMax-rangeMin)/2, ""), xpos, yCenterPos);
+    if (h > 100) {
+      if (this.numberFormat == "float") {
+        text(String.format("% 4.1f%s", (rangeMax-rangeMin)/2, ""), xpos, yCenterPos);
+      }
+      else {
+        text(String.format("% 4.0f%s", (rangeMax-rangeMin)/2, ""), xpos, yCenterPos);
+      }
     }
   }
 }
