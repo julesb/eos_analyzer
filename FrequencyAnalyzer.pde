@@ -12,8 +12,14 @@ class FrequencyAnalyzer {
   double[] logMagnitudeY;
   double[] smoothMagnitudeX;
   double[] smoothMagnitudeY;
-  
-  double gamma = 0.75;
+  double[] zeroMeanX;
+  double[] zeroMeanY;
+
+  double energyX, energyY, energyRef;
+  double powerDbX, powerDbY;
+  double dcOffsetX, dcOffsetY;
+
+  double gamma = 0.57;
 
   int sampleRate = 0x10000;
   //float[] hamming;
@@ -30,6 +36,12 @@ class FrequencyAnalyzer {
     logMagnitudeY = new double[fftSize/2];
     smoothMagnitudeX = new double[fftSize/2];
     smoothMagnitudeY = new double[fftSize/2];
+    zeroMeanX = new double[fftSize];
+    zeroMeanY = new double[fftSize];
+
+    energyRef = fftSize;
+    dcOffsetX = 0;
+    dcOffsetY = 0;
   }
 
   public FrequencyAnalyzer() {
@@ -38,6 +50,9 @@ class FrequencyAnalyzer {
 
   public void update(ArrayList<Point> points) {
     int npoints = points.size();
+    // if (npoints < 1) {
+    //   return;
+    // }
     double[] xvals = new double[fftSize];
     double[] yvals = new double[fftSize];
 
@@ -46,8 +61,10 @@ class FrequencyAnalyzer {
     double maxLogMagnitudeX = Double.NEGATIVE_INFINITY;
     double minLogMagnitudeY = Double.POSITIVE_INFINITY;
     double maxLogMagnitudeY = Double.NEGATIVE_INFINITY;
-    float[] window = hanningWindow(npoints);
-    //float[] window = hammingWindow(npoints);
+    
+    //fft = new FastFourierTransform(FastFourierTransform.Norm.STD);
+
+    //float[] window = hanningWindow(npoints);
     
     // sine wave test to check freq scale calcs
     // double f = 1024.0001;
@@ -60,53 +77,97 @@ class FrequencyAnalyzer {
     // }
 
     //repeat waveform to fill buffer 
-    // for (int i=0; i < fftSize; i++) {
-    //   Point p = points.get(i % npoints);
-    //   xvals[i] = p.x*window[i];
-    //   yvals[i] = p.y*window[i];
-    // }
-    
-    // zero pad waveform 
-    for (int i=0; i < min(npoints, fftSize); i++) {
-      Point p = points.get(i);
-      xvals[i] = p.x*window[i];
-      yvals[i] = p.y*window[i];
+    if (npoints > 0) {
+      for (int i=0; i < fftSize; i++) {
+        Point p = points.get(i % npoints);
+        xvals[i] = p.x;
+        yvals[i] = p.y;
+      }
     }
+    // zero pad waveform 
+    // for (int i=0; i < min(npoints, fftSize); i++) {
+    //   Point p = points.get(i);
+    //   xvals[i] = p.x;
+    //   yvals[i] = p.y;
+    // }
+
+    energyX = 0.0;
+    energyY = 0.0;
+    dcOffsetX = getDCOffset(xvals, fftSize);
+    dcOffsetY = getDCOffset(yvals, fftSize);
+    // dcOffsetX = getDCOffset(xvals, npoints);
+    // dcOffsetY = getDCOffset(yvals, npoints);
+    for (int i = 0; i < fftSize; i++) {
+    //for (int i = 0; i < min(npoints, fftSize); i++) {
+      zeroMeanX[i] = xvals[i] - dcOffsetX;
+      zeroMeanY[i] = yvals[i] - dcOffsetY;
+
+      energyX += zeroMeanX[i]*zeroMeanX[i];
+      energyY += zeroMeanY[i]*zeroMeanY[i];
+      // energyX += Math.pow(magnitudeX[i], 2);
+      // energyY += Math.pow(magnitudeY[i], 2);
+    }
+    energyRef = (double)fftSize;
+    //energyRef = (double)npoints;
+    if (npoints > 0) {
+      powerDbX = 10 * Math.log10(energyX / energyRef);
+      powerDbY = 10 * Math.log10(energyY / energyRef);
+    }
+    //println("dB: ", powerDbX, powerDbY);
     
-    Complex[] fftResultX = fft.apply(xvals);
-    Complex[] fftResultY = fft.apply(yvals);
+    //println("energy:", energyX, energyY);
+
+    int n = min(fftSize, npoints);
+    float[] window = hammingWindow(n);
+    for (int i = 0; i < n; i++) {
+      zeroMeanX[i] *= window[i];
+      zeroMeanY[i] *= window[i];
+    }
+
+    Complex[] fftResultX = fft.apply(zeroMeanX);
+    Complex[] fftResultY = fft.apply(zeroMeanY);
+    // Complex[] fftResultX = fft.apply(xvals);
+    // Complex[] fftResultY = fft.apply(yvals);
 
     for (int i = 0; i < fftSize/2; i++) {
       // "gamma" corrected mag scale
-      magnitudeX[i] = Math.pow(fftResultX[i].abs(), gamma);
-      magnitudeY[i] = Math.pow(fftResultY[i].abs(), gamma);
+      magnitudeX[i] = Math.pow(fftResultX[i].abs(), gamma) * 0.05;
+      magnitudeY[i] = Math.pow(fftResultY[i].abs(), gamma) * 0.05;
       
       // linear mag scale
       // magnitudeX[i] = fftResultX[i].abs();
       // magnitudeY[i] = fftResultY[i].abs();
       
-      smoothMagnitudeX[i] = computeExpMovingAvg(smoothMagnitudeX[i], magnitudeX[i], 3.0);
-      smoothMagnitudeY[i] = computeExpMovingAvg(smoothMagnitudeY[i], magnitudeY[i], 3.0);
+      smoothMagnitudeX[i] = computeExpMovingAvg(smoothMagnitudeX[i], magnitudeX[i], 5.0);
+      smoothMagnitudeY[i] = computeExpMovingAvg(smoothMagnitudeY[i], magnitudeY[i], 5.0);
     }
 
-  //   // Apply log scale and find min and max
-  //   for (int i = 0; i < fftSize/2; i++) {
-  //     logMagnitudeX[i] = 10 * Math.log10(magnitudeX[i] + offset);
-  //     logMagnitudeY[i] = 10 * Math.log10(magnitudeY[i] + offset);
-  //     if (logMagnitudeX[i] < minLogMagnitudeX) minLogMagnitudeX = logMagnitudeX[i];
-  //     if (logMagnitudeX[i] > maxLogMagnitudeX) maxLogMagnitudeX = logMagnitudeX[i];
-  //     if (logMagnitudeY[i] < minLogMagnitudeY) minLogMagnitudeY = logMagnitudeY[i];
-  //     if (logMagnitudeY[i] > maxLogMagnitudeY) maxLogMagnitudeY = logMagnitudeY[i];
-  //   }
-  //
-  //   // Rescale [0, 1]
-  //   double xrange = maxLogMagnitudeX - minLogMagnitudeX;
-  //   double yrange = maxLogMagnitudeY - minLogMagnitudeY;
-  //   for (int i = 0; i < fftSize/2; i++) {
-  //     logMagnitudeX[i] = (logMagnitudeX[i] - minLogMagnitudeX) / xrange;
-  //     logMagnitudeY[i] = (logMagnitudeY[i] - minLogMagnitudeY) / yrange;
-  //   }
-  //
+
+  //   // Apply log scale
+    // for (int i = 0; i < fftSize/2; i++) {
+    //   logMagnitudeX[i] = 0 + 10 * Math.log10(magnitudeX[i] + offset);
+    //   logMagnitudeY[i] = 0 + 10 * Math.log10(magnitudeY[i] + offset);
+    // }
+    //
+    // for (int i = 0; i < fftSize/2; i++) {
+    //   // logMagnitudeX[i] = (logMagnitudeX[i] - minLogMagnitudeX) / xrange;
+    //   // logMagnitudeY[i] = (logMagnitudeY[i] - minLogMagnitudeY) / yrange;
+    //   logMagnitudeX[i] = 0.1 + logMagnitudeX[i]* 0.03;
+    //   logMagnitudeY[i] = 0.1 + logMagnitudeY[i]* 0.03;
+    //
+    //   smoothMagnitudeX[i] = computeExpMovingAvg(smoothMagnitudeX[i], logMagnitudeX[i], 3.0);
+    //   smoothMagnitudeY[i] = computeExpMovingAvg(smoothMagnitudeY[i], logMagnitudeY[i], 3.0);
+    // }
+
+  }
+
+  double getDCOffset(double[] buf, int numvals) {
+    double offset = 0.0;
+    numvals = (numvals <= buf.length)? numvals : buf.length;
+    for (int i = 0; i < numvals; i++) {
+      offset += buf[i];
+    }
+    return offset /= numvals;
   }
   
   double computeExpMovingAvg(double currentval, double newVal, double windowSize) {
@@ -179,41 +240,41 @@ class FrequencyAnalyzer {
 
       // Scale magnitude value to fit within our graph
 
-      float scaledMagnitudeX; // = map((float)smoothMagnitudeX[binIndex], 0, 50, 0, h); 
-      float scaledMagnitudeY; // = map((float)smoothMagnitudeY[binIndex], 0, 50, 0, h); 
-
-      if (!Double.isNaN(smoothMagnitudeX[binIndex])) {
-        scaledMagnitudeX = map((float)smoothMagnitudeX[binIndex], 0, 60, 0, h);
-      }
-      else {
-        scaledMagnitudeX = 0.0;
-      }
-      if (!Double.isNaN(smoothMagnitudeY[binIndex])) {
-        scaledMagnitudeY = map((float)smoothMagnitudeY[binIndex], 0, 60, 0, h);
-      }
-      else {
-        scaledMagnitudeY = 0.0;
-      }
+      float scaledMagnitudeX = (float) smoothMagnitudeX[binIndex]*h/2;
+      float scaledMagnitudeY = (float) smoothMagnitudeY[binIndex]*h/2;
+                              //
+      // float scaledMagnitudeX; // = map((float)smoothMagnitudeX[binIndex], 0, 50, 0, h); 
+      // float scaledMagnitudeY; // = map((float)smoothMagnitudeY[binIndex], 0, 50, 0, h); 
+      // if (!Double.isNaN(smoothMagnitudeX[binIndex])) {
+      //   scaledMagnitudeX = map((float)smoothMagnitudeX[binIndex], 0, 60, 0, h);
+      // }
+      // else {
+      //   scaledMagnitudeX = 0.0;
+      // }
+      // if (!Double.isNaN(smoothMagnitudeY[binIndex])) {
+      //   scaledMagnitudeY = map((float)smoothMagnitudeY[binIndex], 0, 60, 0, h);
+      // }
+      // else {
+      //   scaledMagnitudeY = 0.0;
+      // }
 
       strokeWeight(1);
 
       xpos = x + i * barWidth;
       ypos = y + h/2 - scaledMagnitudeX;
-      //ypos = y + h/2 - (float)logMagnitudeX[binIndex] * h/2;
-      ypos = max(y+2, min(ypos, y+h+2));
+      ypos = max(y+4, min(ypos, y+h/2));
       stroke(16);
       line (xpos, ypos, xpos, y+h/2); 
-      if (ypos > y+3) {
+      if (ypos > y+4) {
         stroke(255);
         point(xpos, ypos);
       }
       
       ypos = y+h - scaledMagnitudeY;
-      //ypos = y+h - (float)logMagnitudeY[binIndex] * h/2;
-      ypos = max(y+h/2+2, min(ypos, y+h-1));
+      ypos = max(y+h/2+4, min(ypos, y+h-1));
       stroke(16);
       line (xpos, ypos, xpos, y+h-1); 
-      if (ypos > y+h/2+3) {
+      if (ypos > y+h/2+4) {
         stroke(255);
         point(xpos, ypos);
       }
