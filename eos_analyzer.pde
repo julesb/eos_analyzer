@@ -87,8 +87,13 @@ HistoryPlot distHistory;
 HistoryPlot maxdistHistory;
 HistoryPlot bcRatioHistory;
 HistoryPlot bitrateHistory;
+HistoryPlot energyxHistory;
+HistoryPlot energyyHistory;
 HistoryPlot smoothPoints;
 ArrayList<HistoryPlot> plots = new ArrayList();
+
+double smoothPowerX = 0.0;
+double smoothPowerY = 0.0;
 
 FrameAnalyzer analyzer;
 FrequencyAnalyzer freqAnalyzer;
@@ -179,16 +184,20 @@ void setup() {
   maxdistHistory = new HistoryPlot("Dmax",   historyLength, 0.0, 5800.0, 1, "int", "");
   bcRatioHistory = new HistoryPlot("C/D",    historyLength, 0.0, 1.0,    5, "float", "");
   bitrateHistory = new HistoryPlot("Net",    historyLength, 0.0, 10.0, 5, "float", "Mbps");
-  
+  energyxHistory = new HistoryPlot("Ex",     historyLength, 0.0, 4096,   10,  "int", "");
+  energyyHistory = new HistoryPlot("Ey",     historyLength, 0.0, 4096,   10,  "int", "");
+
   plots.add(fpsHistory);
   plots.add(pointsHistory);
   plots.add(ppsHistory);
   plots.add(pathsHistory);
   plots.add(distHistory);
-  plots.add(maxdistHistory);
+  plots.add(energyxHistory);
   plots.add(bcRatioHistory);
+  plots.add(maxdistHistory);
+  plots.add(energyyHistory);
   plots.add(bitrateHistory);
-  
+
   // For caclulation only, dont add to layout:
   smoothPoints = new HistoryPlot("SmoothPoints", historyLength, 0, 4096, 20, "","");
 
@@ -338,6 +347,9 @@ void draw() {
     bitrateHistory.addValue(0);
   }
 
+  energyxHistory.addValue((float)freqAnalyzer.energyX);
+  energyyHistory.addValue((float)freqAnalyzer.energyY);
+
   int plotRows, plotCols;
   if (width-projScreenRect.w < width/2) {
     plotRows = plots.size();
@@ -345,7 +357,7 @@ void draw() {
   }
   else {
     plotRows = 4;
-    plotCols = 2;  
+    plotCols = 3;  
   }
   drawPlotsLayout(projScreenRect.w + statusPanelScreenRect.w+plotMargin*3,
                   1,
@@ -420,8 +432,119 @@ void drawStatusPanel(int x, int y, int w, int h,
   // Draw selection info panel
   drawSelectionInfoPanel(x+pad, y+h-180-pad, 280, infoPanelHeight,
                          points, regionsAtSelection);
+
+  bcount++;
+
+  int metersWidth = 100;
+  drawdBMeter((float)freqAnalyzer.powerDbX, (float)freqAnalyzer.powerDbY,
+                 x+pad*4, y + vstep * bcount, metersWidth, 300);
+  
+  drawEnergyMeter(energyxHistory.expMovingAvg, energyyHistory.expMovingAvg,
+                 x+pad*6+metersWidth, y + vstep * bcount, 100, 300);
 } 
 
+void drawEnergyMeter(float dBX, float dBY, int x, int y, int w, int h) {
+  float minDB = 0;       // Minimum dB value for the scale
+  float maxDB = 4096;         // Maximum dB value for the scale
+  int pad = 10;
+  
+  int meterW = (w-pad*3) / 2;
+  int meterH = h - pad*2;
+  
+  // Map the dB value to the meter's length
+  float meterValueX = map(dBX, minDB, maxDB, 0, meterH);
+  float meterValueY = map(dBY, minDB, maxDB, 0, meterH);
+  meterValueX = min(meterH-1, meterValueX);
+  meterValueY = min(meterH-1, meterValueY);
+
+
+  stroke(255,32);
+  fill(0);
+  rect(x, y, w, h);
+
+  //stroke(255,64);
+  rect(x+pad, y+pad, meterW, meterH);
+  rect(x+meterW+pad*2, y+pad, meterW, meterH);
+  
+
+  fill(255, 64);
+  noStroke();
+  rect(x+pad+1, y+h-pad - meterValueX, meterW-1, meterValueX);
+  rect(x+meterW+pad*2+1, y+h-pad - meterValueY, meterW-1, meterValueY);
+  
+  // Draw the scale with reference lines
+  stroke(255);
+  fill(255);
+  for (float refDB = maxDB; refDB >= minDB; refDB -= 512) {
+    float refY = map(refDB, minDB, maxDB, y+h-pad, y+pad);
+    line(x+2, refY, x+3, refY);
+    //text(nf(refDB, 0, 1) + " dB", x, refY);
+    //text(nf(refDB, 0, 1) + " dB", refX + 2, y - scaleLength);
+  }
+
+  text(String.format("%.2f", dBX), x+pad, y+h+pad*2);
+
+}
+
+void drawdBMeter(float dBX, float dBY, int x, int y, int w, int h) {
+  float minDB = -50;       // Minimum dB value for the scale
+  float maxDB = 10;         // Maximum dB value for the scale
+  int pad = 10;
+  
+  int meterW = (w-pad*3) / 2;
+  int meterH = h - pad*2;
+  float meterValueX, meterValueY; 
+
+  if (dBX == Double.NEGATIVE_INFINITY || dBY == Double.NEGATIVE_INFINITY) {
+    // meterValueX = 0.0;
+    // meterValueY = 0.0;
+    smoothPowerX = freqAnalyzer.computeExpMovingAvg(smoothPowerX, minDB, 5.0);
+    smoothPowerY = freqAnalyzer.computeExpMovingAvg(smoothPowerY, minDB, 5.0);
+  }
+  else {
+    smoothPowerX = freqAnalyzer.computeExpMovingAvg(smoothPowerX, dBX, 5.0);
+    smoothPowerY = freqAnalyzer.computeExpMovingAvg(smoothPowerY, dBY, 5.0);
+  }
+
+    // Map the dB value to the meter's length
+    meterValueX = map((float)smoothPowerX, minDB, maxDB, 0, meterH);
+    meterValueY = map((float)smoothPowerY, minDB, maxDB, 0, meterH);
+    meterValueX = min(meterH-1, meterValueX);
+    meterValueY = min(meterH-1, meterValueY);
+
+  stroke(255,32);
+  fill(0);
+  rect(x, y, w, h);
+
+  //stroke(255,64);
+  rect(x+pad, y+pad, meterW, meterH);
+  rect(x+meterW+pad*2, y+pad, meterW, meterH);
+  
+
+  fill(255, 64);
+  noStroke();
+  rect(x+pad+1, y+h-pad - meterValueX, meterW-1, meterValueX);
+  rect(x+meterW+pad*2+1, y+h-pad - meterValueY, meterW-1, meterValueY);
+  
+  // Draw the scale with reference lines
+  stroke(255);
+  fill(255);
+
+
+  float refY = map(0.0, minDB, maxDB, y+h-pad, y+pad);
+  line(x+2, refY, x+6, refY);
+  text("0dB", x-50, refY);
+
+  // for (float refDB = maxDB; refDB >= minDB; refDB -= 10) {
+  //   float refY = map(refDB, minDB, maxDB, y+h-pad, y+pad);
+  //   line(x+2, refY, x+3, refY);
+  //   //text(nf(refDB, 0, 1) + " dB", x, refY);
+  //   //text(nf(refDB, 0, 1) + " dB", refX + 2, y - scaleLength);
+  // }
+
+  text(String.format("%.2fdB", dBX), x+pad, y+h+pad*2);
+
+}
 
 void drawSelectionInfoPanel(int x, int y, int w, int h, ArrayList<Point> points, ArrayList<Region> regionsAtSelection) {
   int rowHeight = 28;
@@ -657,6 +780,7 @@ void drawPlotsLayout(int x, int y, int layoutWidth, int layoutHight, int rows, i
         break;
       }
       HistoryPlot p = plots.get(i);
+      p.drawShader(xpos, ypos, pwidth, pheight);
       p.draw(xpos, ypos, pwidth, pheight);
       i++;
     }
