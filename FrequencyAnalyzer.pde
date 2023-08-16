@@ -27,6 +27,10 @@ class FrequencyAnalyzer {
   float zoom = 1.0;
   float zoomVelocity = 0.0;
 
+  PGraphics g;
+  PShader fftShader;
+  PImage fftTex;
+
   public FrequencyAnalyzer(int _fftSize) {
     this.fftSize = _fftSize;
     fft = new FastFourierTransform(FastFourierTransform.Norm.STD);
@@ -42,6 +46,9 @@ class FrequencyAnalyzer {
     energyRef = fftSize;
     dcOffsetX = 0;
     dcOffsetY = 0;
+
+    fftShader = loadShader("fftplot.glsl");
+    fftTex = createImage(fftSize/2, 2, ARGB);
   }
 
   public FrequencyAnalyzer() {
@@ -159,6 +166,9 @@ class FrequencyAnalyzer {
     //   smoothMagnitudeY[i] = computeExpMovingAvg(smoothMagnitudeY[i], logMagnitudeY[i], 3.0);
     // }
 
+    zoomVelocity *= 0.8;
+    zoom += zoomVelocity;
+    zoom = max(1, min(fftSize, zoom));
   }
 
   double getDCOffset(double[] buf, int numvals) {
@@ -196,6 +206,44 @@ class FrequencyAnalyzer {
     return window;
   }
 
+
+
+
+  public void drawFFTShader(int x, int y, int w, int h) {
+    if (this.g == null || g.width != w || g.height != h) {
+      g = createGraphics(w, h, P3D);
+    }
+    
+    //float binsPerPixel = (float) fftSize/2/zoom / w;
+    fftTex.loadPixels();
+    int numbins = fftSize/2;
+    for (int i=0; i<numbins;i++) {
+      int binIndex = min((int)(i/zoom), numbins-1);
+      fftTex.pixels[i        ] = Float.floatToIntBits((float)smoothMagnitudeX[binIndex]);
+      fftTex.pixels[i+numbins] = Float.floatToIntBits((float)smoothMagnitudeY[binIndex]);
+    }
+    fftTex.updatePixels();
+
+    float ar = (float)w/h;
+    g.beginDraw();
+    g.texture(fftTex);
+    g.shader(fftShader);
+    fftShader.set("ffttex", fftTex);
+    g.beginShape(QUADS);
+    g.vertex(0, 0,  0, 0);
+    g.vertex( w, 0, ar, 0);
+    g.vertex( w,  h, ar, 1);
+    g.vertex(0,  h,  0, 1);
+    g.endShape();
+    g.endDraw();
+    
+    fill(255,255,255,255);
+    image(g, x, y, w, h);
+
+
+    drawScale(x,y,w,h);
+  }
+
   public void drawScale(int x, int y, int w, int h) {
     int range = (int)(fftSize/2/zoom);
     int numDivisions = 6; 
@@ -227,9 +275,9 @@ class FrequencyAnalyzer {
     fill(0, 0, 0, 192);
     rect(x,y,w,h);
     
-    zoomVelocity *= 0.8;
-    zoom += zoomVelocity;
-    zoom = max(1, min(fftSize, zoom));
+    // zoomVelocity *= 0.8;
+    // zoom += zoomVelocity;
+    // zoom = max(1, min(fftSize, zoom));
     
     // Number of FFT bins per screen pixel
     float binsPerPixel = (float) fftSize/2/zoom / w;
@@ -258,31 +306,31 @@ class FrequencyAnalyzer {
       //   scaledMagnitudeY = 0.0;
       // }
 
-      strokeWeight(1);
+      strokeWeight(2);
 
       xpos = x + i * barWidth;
       ypos = y + h/2 - scaledMagnitudeX;
       ypos = max(y+4, min(ypos, y+h/2));
-      stroke(16);
-      line (xpos, ypos, xpos, y+h/2); 
+      // stroke(16);
+      // line (xpos, ypos, xpos, y+h/2); 
       if (ypos > y+4) {
-        stroke(255);
+        stroke(255,0,0);
         point(xpos, ypos);
       }
       
       ypos = y+h - scaledMagnitudeY;
       ypos = max(y+h/2+4, min(ypos, y+h-1));
-      stroke(16);
-      line (xpos, ypos, xpos, y+h-1); 
+      // stroke(16);
+      // line (xpos, ypos, xpos, y+h-1); 
       if (ypos > y+h/2+4) {
-        stroke(255);
+        stroke(255,0,0);
         point(xpos, ypos);
       }
     }
     
     stroke(255,255,255,32);
     line(x, y + h/2, x+w, y+h/2);
-    drawScale(x,y,w,h);
+    // drawScale(x,y,w,h);
   }
 
 

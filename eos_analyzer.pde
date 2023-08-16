@@ -3,6 +3,7 @@ import netP5.*;
 import java.util.zip.Inflater;
 import java.util.zip.DataFormatException;
 import org.apache.commons.math4.transform.*;
+import java.nio.IntBuffer;
 
 /*
   TODO:
@@ -213,6 +214,13 @@ void setup() {
   uncapButton.state = false;
   fitwidthButton.isToggle = true;
   fitwidthButton.state = true;
+
+//   PGL pgl = beginPGL(); // Begin the raw OpenGL context
+//   IntBuffer maxUniforms = IntBuffer.allocate(1);
+//   pgl.glGetIntegerv(PGL.GL_MAX_FRAGMENT_UNIFORM_VECTORS, maxUniforms);
+//   int uniformComponents = maxUniforms.get(0);
+//   endPGL(); // End raw OpenGL context
+//   println("Max fragment uniform components: " + uniformComponents);
 }
 
 
@@ -304,7 +312,13 @@ void draw() {
     statusPanelScreenRect.h,
     lpoints, regionsAtSelection);
 
-  freqAnalyzer.draw(  
+  freqAnalyzer.drawFFTShader(
+    spectrumScreenRect.x,
+    spectrumScreenRect.y,
+    spectrumScreenRect.w,
+    spectrumScreenRect.h);
+
+  freqAnalyzer.draw(
     spectrumScreenRect.x,
     spectrumScreenRect.y,
     spectrumScreenRect.w,
