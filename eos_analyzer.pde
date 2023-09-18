@@ -99,6 +99,7 @@ double smoothPowerY = 0.0;
 FrameAnalyzer analyzer;
 FrequencyAnalyzer freqAnalyzer;
 
+color meterColor = color(192/2,238/2,1,255);
 
 int oscFrameCount = 0;
 
@@ -318,11 +319,11 @@ void draw() {
     spectrumScreenRect.w,
     spectrumScreenRect.h);
 
-  freqAnalyzer.draw(
-    spectrumScreenRect.x,
-    spectrumScreenRect.y,
-    spectrumScreenRect.w,
-    spectrumScreenRect.h);
+  // freqAnalyzer.draw(
+  //   spectrumScreenRect.x,
+  //   spectrumScreenRect.y,
+  //   spectrumScreenRect.w,
+  //   spectrumScreenRect.h);
 
   if (spectrumScreenRect.containsPoint(mouseX, mouseY)) {
     freqAnalyzer.drawCursor(
@@ -461,7 +462,8 @@ void drawEnergyMeter(float dBX, float dBY, int x, int y, int w, int h) {
   float minDB = 0;       // Minimum dB value for the scale
   float maxDB = 4096;         // Maximum dB value for the scale
   int pad = 10;
-  
+  // color meterColor = color(192/2,238/2,1,255);
+
   int meterW = (w-pad*3) / 2;
   int meterH = h - pad*2;
   
@@ -481,7 +483,7 @@ void drawEnergyMeter(float dBX, float dBY, int x, int y, int w, int h) {
   rect(x+meterW+pad*2, y+pad, meterW, meterH);
   
 
-  fill(255, 64);
+  fill(meterColor);
   noStroke();
   rect(x+pad+1, y+h-pad - meterValueX, meterW-1, meterValueX);
   rect(x+meterW+pad*2+1, y+h-pad - meterValueY, meterW-1, meterValueY);
@@ -504,7 +506,7 @@ void drawdBMeter(float dBX, float dBY, int x, int y, int w, int h) {
   float minDB = -50;       // Minimum dB value for the scale
   float maxDB = 10;         // Maximum dB value for the scale
   int pad = 10;
-  
+  // color meterColor = color(192/2,238/2,1,255);
   int meterW = (w-pad*3) / 2;
   int meterH = h - pad*2;
   float meterValueX, meterValueY; 
@@ -523,8 +525,8 @@ void drawdBMeter(float dBX, float dBY, int x, int y, int w, int h) {
     // Map the dB value to the meter's length
     meterValueX = map((float)smoothPowerX, minDB, maxDB, 0, meterH);
     meterValueY = map((float)smoothPowerY, minDB, maxDB, 0, meterH);
-    meterValueX = min(meterH-1, meterValueX);
-    meterValueY = min(meterH-1, meterValueY);
+    meterValueX = max(0, min(meterH-1, meterValueX));
+    meterValueY = max(0, min(meterH-1, meterValueY));
 
   stroke(255,32);
   fill(0);
@@ -534,8 +536,7 @@ void drawdBMeter(float dBX, float dBY, int x, int y, int w, int h) {
   rect(x+pad, y+pad, meterW, meterH);
   rect(x+meterW+pad*2, y+pad, meterW, meterH);
   
-
-  fill(255, 64);
+  fill(meterColor);
   noStroke();
   rect(x+pad+1, y+h-pad - meterValueX, meterW-1, meterValueX);
   rect(x+meterW+pad*2+1, y+h-pad - meterValueY, meterW-1, meterValueY);
@@ -920,7 +921,7 @@ void renderProjectionImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PG
       continue;
     }
 
-    g.stroke(p1.col, 220);
+    g.stroke(p1.col, 240);
     g.vertex(p1.x*sx, p1.y*sy);
     g.vertex(p2.x*sx, p2.y*sy);
   }
@@ -935,7 +936,7 @@ void renderProjectionImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PG
   
     Point p = ppoints.get(r.startIndex);
     g.strokeWeight(6);
-    g.stroke(p.col, 220);
+    g.stroke(p.col, 255);
     g.point(p.x*sx, p.y*sy);
   }
 
