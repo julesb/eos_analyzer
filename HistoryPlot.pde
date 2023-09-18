@@ -76,7 +76,6 @@ class HistoryPlot {
     g.beginDraw();
     plotShader.set("values", valuesNormalized);
     plotShader.set("resolution", res);
-    plotShader.set("valuesindex", (float)currentIndex);
 
     g.shader(plotShader);
     g.beginShape(QUADS);
