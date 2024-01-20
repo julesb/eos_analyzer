@@ -115,12 +115,12 @@ class HistoryPlot {
 
     fill(255,255,255, 240);
 
-    textSize(50);
+    textSize(32);
     if (this.numberFormat == "float") {
-      text(String.format("%.2f %s", expMovingAvg, units), x+valueOffset, y+39);
+      text(String.format("%.2f %s", expMovingAvg, units), x+valueOffset, y+28);
     }
     else {
-      text(String.format("%d %s", (int)expMovingAvg, units), x+valueOffset, y+39);
+      text(String.format("%d %s", (int)expMovingAvg, units), x+valueOffset, y+28);
     }
 
     noFill();
