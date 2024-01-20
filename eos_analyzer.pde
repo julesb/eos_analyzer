@@ -61,7 +61,8 @@ Rect projScreenRect = new Rect(0, 0, 1024, 1024);
 Point projScreenCursor = new Point(0,0);
 float projBeamIntensity = 1.0;
 
-int galvoPlotHeight = 768;
+int galvoPlotHeight = 360;
+// int galvoPlotHeight = 768;
 GalvoPlot galvoPlot;
 Rect galvoPlotCtxRect;
 Rect galvoPlotScreenRect = new Rect(0, 0, 1024, galvoPlotHeight);
@@ -69,7 +70,7 @@ Rect galvoPlotScreenRect = new Rect(0, 0, 1024, galvoPlotHeight);
 int statusPanelWidth = 300;
 Rect statusPanelScreenRect; 
 
-int spectrumPlotHeight = 300; // will be recalculated
+int spectrumPlotHeight = 200; // will be recalculated
 Rect spectrumScreenRect = new Rect(0,0,1024,1024);
 
 
@@ -141,7 +142,7 @@ void updateScreenRects() {
   statusPanelScreenRect.w = statusPanelWidth;
   statusPanelScreenRect.h = height - galvoPlotScreenRect.h - 2*padding; // - spectrumPlotHeight;
 
-  spectrumPlotHeight = (height - galvoPlotScreenRect.h) / 3;
+  spectrumPlotHeight = (height - galvoPlotScreenRect.h) / 4;
   spectrumScreenRect.x = projScreenRect.x
                        + projScreenRect.w
                        + statusPanelScreenRect.w
@@ -154,7 +155,8 @@ void updateScreenRects() {
 }
 
 void setup() {
-  size(2220, 2074, P2D);
+  size(1600, 1280, P2D);
+  // size(2220, 2074, P2D);
   surface.setResizable(true);
   surface.setLocation(0, 40);
   textSize(24);
@@ -371,6 +373,8 @@ void draw() {
     plotCols = 1;
   }
   else {
+    // plotRows = 5;
+    // plotCols = 2; 
     plotRows = 4;
     plotCols = 3;  
   }
@@ -452,10 +456,10 @@ void drawStatusPanel(int x, int y, int w, int h,
 
   int metersWidth = 100;
   drawdBMeter((float)freqAnalyzer.powerDbX, (float)freqAnalyzer.powerDbY,
-                 x+pad*4, y + vstep * bcount, metersWidth, 300);
+                 x+pad*4, y + vstep * (bcount-2), metersWidth, 250);
   
   drawEnergyMeter(energyxHistory.expMovingAvg, energyyHistory.expMovingAvg,
-                 x+pad*6+metersWidth, y + vstep * bcount, 100, 300);
+                 x+pad*6+metersWidth, y + vstep * (bcount-2), 100, 250);
 } 
 
 void drawEnergyMeter(float dBX, float dBY, int x, int y, int w, int h) {
