@@ -73,6 +73,8 @@ Rect statusPanelScreenRect;
 int spectrumPlotHeight = 200; // will be recalculated
 Rect spectrumScreenRect = new Rect(0,0,1024,1024);
 
+int colorPanelHeight = 200;
+Rect colorPanelScreenRect;
 
 Boolean frameDirty = true;
 ArrayList<Point> points;
@@ -84,7 +86,7 @@ int historyLength = 512;
 HistoryPlot fpsHistory;
 HistoryPlot pointsHistory;
 HistoryPlot ppsHistory;
-HistoryPlot pathsHistory;
+// HistoryPlot pathsHistory;
 HistoryPlot distHistory;
 HistoryPlot maxdistHistory;
 HistoryPlot bcRatioHistory;
@@ -99,6 +101,7 @@ double smoothPowerY = 0.0;
 
 FrameAnalyzer analyzer;
 FrequencyAnalyzer freqAnalyzer;
+ColorAnalyzer colorAnalyzer;
 
 color meterColor = color(192/2,238/2,1,255);
 
@@ -152,13 +155,14 @@ void updateScreenRects() {
                        - projScreenRect.w
                        - statusPanelScreenRect.w;
   spectrumScreenRect.h = spectrumPlotHeight;
+
 }
 
 void setup() {
-  size(1600, 1280, P2D);
+  size(1920, 1200, P2D);
   // size(2220, 2074, P2D);
   surface.setResizable(true);
-  surface.setLocation(0, 40);
+  // surface.setLocation(0, 40);
   textSize(24);
   frameRate(480);
   galvoPlotCtxRect = new Rect(0, 0, width, galvoPlotHeight);
@@ -170,6 +174,11 @@ void setup() {
                                    statusPanelWidth,
                                    height-galvoPlotHeight);
 
+  colorPanelScreenRect = new Rect(width-projScreenRect.x - padding*2,
+                            height - galvoPlotScreenRect.h - colorPanelHeight,
+                            spectrumScreenRect.h - padding*3,
+                            colorPanelHeight);
+
   oscProps = new OscProperties();
   oscProps.setDatagramSize(65535);
   oscProps.setListeningPort(12000);
@@ -179,22 +188,23 @@ void setup() {
 
   analyzer = new FrameAnalyzer();
   freqAnalyzer = new FrequencyAnalyzer(4096);
+  colorAnalyzer = new ColorAnalyzer();
 
   fpsHistory     = new HistoryPlot("FPS",    historyLength, 0.0, 240.0,  5, "int", "");
   pointsHistory  = new HistoryPlot("Points", historyLength, 0.0, 4096.0, 1, "int", "");
   ppsHistory     = new HistoryPlot("PPS",    historyLength, 0.0, 360.0,  5, "int", "k");
-  pathsHistory   = new HistoryPlot("Paths",  historyLength, 0.0, 100.0,  1, "int", "");
+  // pathsHistory   = new HistoryPlot("Paths",  historyLength, 0.0, 100.0,  1, "int", "");
   distHistory    = new HistoryPlot("Dsum",   historyLength, 0.0, 120.0,  5, "float", "k");
   maxdistHistory = new HistoryPlot("Dmax",   historyLength, 0.0, 5800.0, 1, "int", "");
   bcRatioHistory = new HistoryPlot("C/D",    historyLength, 0.0, 1.0,    5, "float", "");
-  bitrateHistory = new HistoryPlot("Net",    historyLength, 0.0, 10.0, 5, "float", "Mbps");
+  bitrateHistory = new HistoryPlot("Net",    historyLength, 0.0, 10.0, 5, "float", "Mb");
   energyxHistory = new HistoryPlot("Ex",     historyLength, 0.0, 4096,   10,  "int", "");
   energyyHistory = new HistoryPlot("Ey",     historyLength, 0.0, 4096,   10,  "int", "");
 
   plots.add(fpsHistory);
   plots.add(pointsHistory);
   plots.add(ppsHistory);
-  plots.add(pathsHistory);
+  // plots.add(pathsHistory);
   plots.add(distHistory);
   plots.add(energyxHistory);
   plots.add(bcRatioHistory);
@@ -243,7 +253,10 @@ void draw() {
   ArrayList<Region> lregions = analyzer.getRegions(lpoints);
 
   freqAnalyzer.update(lpoints);
-  
+
+  colorAnalyzer.update(lpoints);
+
+
   int mx = mouseX, my = mouseY; 
   updateCursors(mx, my, lpoints);
   ArrayList<Region> regionsAtSelection = analyzer.selectAndGetRegionsAtIndex(galvoPlot.selectedPointIndex);
@@ -375,14 +388,26 @@ void draw() {
   else {
     // plotRows = 5;
     // plotCols = 2; 
-    plotRows = 4;
+    plotRows = 3;
     plotCols = 3;  
   }
   drawPlotsLayout(projScreenRect.w + statusPanelScreenRect.w+plotMargin*3,
                   1,
                   width-projScreenRect.w - statusPanelScreenRect.w -plotMargin*3,
-                  height-galvoPlotHeight-plotMargin*3 - spectrumPlotHeight,
+                  height-galvoPlotHeight-plotMargin*3 - spectrumPlotHeight - colorPanelHeight,
                   plotRows, plotCols);
+  // drawPlotsLayout(projScreenRect.w + statusPanelScreenRect.w+plotMargin*3,
+  //                 1,
+  //                 width-projScreenRect.w - statusPanelScreenRect.w -plotMargin*3,
+  //                 height-galvoPlotHeight-plotMargin*3 - spectrumPlotHeight,
+  //                 plotRows, plotCols);
+
+
+
+  colorAnalyzer.draw(projScreenRect.w + statusPanelScreenRect.w+plotMargin*3,
+                  height - galvoPlotScreenRect.h -spectrumPlotHeight - colorPanelHeight - plotMargin,
+                  width-projScreenRect.w - statusPanelScreenRect.w -plotMargin*4,
+                  colorPanelHeight - plotMargin);
 
   prevFrameFinalPoint = lpoints.get(npoints-1);
 }
@@ -419,47 +444,49 @@ void drawStatusPanel(int x, int y, int w, int h,
 
   // reset for text
   bcount=1;
-  vstep = 30;
+  vstep = 20;
 
   // Draw debug info
-  fill(192);
-  textSize(24);
-  float vpw = 1.0 / galvoPlot.zoom;
-  float vpMin = galvoPlot.cursorNormalized * vpw;
-  float vpMax = galvoPlot.cursorNormalized + vpw / 2.0 / galvoPlot.zoom;
-
-  String selTxt = (galvoPlot.selectedPointIndex > -1)?
-                    String.format("sel: %d", galvoPlot.selectedPointIndex)
-                    : "sel: none";
-  String zoomTxt = String.format("zoom: %.2f", galvoPlot.zoom);
-  String cursorTxt = String.format("cursor: %.2f", galvoPlot.cursorNormalized);
-  String vpwTxt = String.format("VPw: %.2f", 1.0 / galvoPlot.zoom);
-  String vpminTxt = String.format("VPmin: %.2f",
-                    getViewportMin(galvoPlot.cursorNormalized, galvoPlot.zoom));
-  String vpmaxTxt = String.format("VPmax: %.2f",
-                     getViewportMax(galvoPlot.cursorNormalized, galvoPlot.zoom));
-  String fpsTxt = String.format("fps: %d", (int)frameRate);
-
-  text(selTxt,    x+pad*2, y + vstep * bcount++);
-  text(zoomTxt,   x+pad*2, y + vstep * bcount++);
-  text(cursorTxt, x+pad*2, y + vstep * bcount++);
-  text(vpwTxt,    x+pad*2, y + vstep * bcount++);
-  text(vpminTxt,  x+pad*2, y + vstep * bcount++);
-  text(vpmaxTxt,  x+pad*2, y + vstep * bcount++);
-  text(fpsTxt,    x+pad*2, y + vstep * bcount++);
+  // fill(192);
+  // textSize(16);
+  // float vpw = 1.0 / galvoPlot.zoom;
+  // float vpMin = galvoPlot.cursorNormalized * vpw;
+  // float vpMax = galvoPlot.cursorNormalized + vpw / 2.0 / galvoPlot.zoom;
+  //
+  // String selTxt = (galvoPlot.selectedPointIndex > -1)?
+  //                   String.format("sel: %d", galvoPlot.selectedPointIndex)
+  //                   : "sel: none";
+  // String zoomTxt = String.format("zoom: %.2f", galvoPlot.zoom);
+  // String cursorTxt = String.format("cursor: %.2f", galvoPlot.cursorNormalized);
+  // String vpwTxt = String.format("VPw: %.2f", 1.0 / galvoPlot.zoom);
+  // String vpminTxt = String.format("VPmin: %.2f",
+  //                   getViewportMin(galvoPlot.cursorNormalized, galvoPlot.zoom));
+  // String vpmaxTxt = String.format("VPmax: %.2f",
+  //                    getViewportMax(galvoPlot.cursorNormalized, galvoPlot.zoom));
+  // String fpsTxt = String.format("fps: %d", (int)frameRate);
+  //
+  // text(selTxt,    x+pad*2, y + vstep * bcount++);
+  // text(zoomTxt,   x+pad*2, y + vstep * bcount++);
+  // text(cursorTxt, x+pad*2, y + vstep * bcount++);
+  // text(vpwTxt,    x+pad*2, y + vstep * bcount++);
+  // text(vpminTxt,  x+pad*2, y + vstep * bcount++);
+  // text(vpmaxTxt,  x+pad*2, y + vstep * bcount++);
+  // text(fpsTxt,    x+pad*2, y + vstep * bcount++);
 
   // Draw selection info panel
   drawSelectionInfoPanel(x+pad, y+h-180-pad, 280, infoPanelHeight,
                          points, regionsAtSelection);
 
-  bcount++;
+  bcount += 2;
 
   int metersWidth = 100;
-  drawdBMeter((float)freqAnalyzer.powerDbX, (float)freqAnalyzer.powerDbY,
-                 x+pad*4, y + vstep * (bcount-2), metersWidth, 250);
-  
-  drawEnergyMeter(energyxHistory.expMovingAvg, energyyHistory.expMovingAvg,
-                 x+pad*6+metersWidth, y + vstep * (bcount-2), 100, 250);
+  if (height > 1190) {
+    drawdBMeter((float)freqAnalyzer.powerDbX, (float)freqAnalyzer.powerDbY,
+                   x+pad*4, y + vstep * (bcount-2), metersWidth, 250);
+    
+    drawEnergyMeter(energyxHistory.expMovingAvg, energyyHistory.expMovingAvg,
+                   x+pad*6+metersWidth, y + vstep * (bcount-2), 100, 250);
+  }
 } 
 
 void drawEnergyMeter(float dBX, float dBY, int x, int y, int w, int h) {
@@ -678,7 +705,7 @@ void drawSelectionInfoPanel(int x, int y, int w, int h, ArrayList<Point> points,
   }
   textx = xpos+margin*2;
   texty = textOriginY+3;
-  text("draw", textx, texty);
+  text("path", textx, texty);
   texty += rowHeight;
   text(drawStr, textx, texty);
 
@@ -789,6 +816,9 @@ void updateCursors(int mx, int my, ArrayList<Point> points) {
 void drawPlotsLayout(int x, int y, int layoutWidth, int layoutHight, int rows, int cols)  {
   int pwidth = (layoutWidth - plotMargin*1*cols) / cols;
   int pheight = (layoutHight - plotMargin*(rows-1)) / rows;
+
+  // println("plot height:", pheight);
+
   int nplots = plots.size();
   int i = 0;
   for (int yi = 0; yi < rows; yi++) {
@@ -945,7 +975,10 @@ void renderProjectionImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PG
   }
 
   // Highlight the selected point
-  if (galvoPlot.selectedPointIndex >= 0 && galvoPlot.selectedPointIndex < npoints-1) {
+  if (showBlankLines
+  // if (snapshotModeEnabled
+      && galvoPlot.selectedPointIndex >= 0
+      && galvoPlot.selectedPointIndex < npoints-1) {
     Point p1 = (Point)ppoints.get(galvoPlot.selectedPointIndex);
     if (p1.isBlank) {
       g.stroke(255,255,255,240);
@@ -969,8 +1002,9 @@ void renderProjectionImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PG
   if (showBlankLines) {
     // highlight first point in frame
     Point p1 = (Point)ppoints.get(0);
-    g.stroke(0, 255, 0);
-    g.fill(0, 255,0);
+    g.stroke(255, 255, 255, 128);
+    noFill();
+    // g.fill(0, 255,0);
     g.ellipse(p1.x*sx, p1.y*sy, 10, 10);
   }
   g.popMatrix();
