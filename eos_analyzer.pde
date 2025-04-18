@@ -61,7 +61,7 @@ Rect projScreenRect = new Rect(0, 0, 1024, 1024);
 Point projScreenCursor = new Point(0,0);
 float projBeamIntensity = 1.0;
 
-int galvoPlotHeight = 360;
+int galvoPlotHeight = 300;
 // int galvoPlotHeight = 768;
 GalvoPlot galvoPlot;
 Rect galvoPlotCtxRect;
@@ -159,7 +159,8 @@ void updateScreenRects() {
 }
 
 void setup() {
-  size(1920, 1200, P2D);
+  size(1586, 905, P2D);
+  // size(1920, 1200, P2D);
   // size(2220, 2074, P2D);
   surface.setResizable(true);
   // surface.setLocation(0, 40);
@@ -659,7 +660,7 @@ void drawSelectionInfoPanel(int x, int y, int w, int h, ArrayList<Point> points,
   fill(255,255,255,192);
 
   String posStr = String.format("pos: %5d, %5d",
-    (int)(selectedPoint.x*-2047), (int)(selectedPoint.y*-2047));
+    (int)(selectedPoint.x*2047), (int)(selectedPoint.y*2047));
   texty = textOriginY + rowCount++ * rowHeight;
   text(posStr, textx, texty);
   
@@ -901,8 +902,8 @@ void checkMouse() {
 void renderProjectionImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PGraphics g) {
   int npoints = ppoints.size();
   int nregions = regions.size();
-  float sx = -g.width / 2.0;
-  float sy =  g.width / 2.0;
+  float sx = g.width / 2.0;
+  float sy = -g.width / 2.0;
 
   g.beginDraw();
   g.background(0);
@@ -943,7 +944,8 @@ void renderProjectionImg(ArrayList<Point> ppoints, ArrayList<Region> regions, PG
 
   for (int i = 0; i < npoints; i++) {
     int pidx1 = i;
-    int pidx2 = (i+1) % npoints;
+    int pidx2 = min(npoints-1, i+1);
+    // int pidx2 = (i+1) % npoints;
     Point p1 = ppoints.get(pidx1);
     if (p1.isBlank) {
       continue;
@@ -1145,6 +1147,7 @@ void oscEvent(OscMessage message) {
       Point point = new Point(x / 32767.5 - 1, y / 32767.5 - 1, r, g, b);
       pointList.add(point);
     }
+    // print(pointList.get(numPoints-1).toString());
     points = pointList;
     frameDirty = true;
     oscFrameCount++;

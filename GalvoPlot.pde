@@ -4,7 +4,7 @@ class GalvoPlot {
   int ctxWidth;
   int ctxHeight;
   Boolean ctxResizeLock = false;
-  int regionAreaHeight = 80;
+  int regionAreaHeight = 60;
   int infoAreaHeight = 20;
   int vpad= 10;
   
@@ -156,7 +156,7 @@ class GalvoPlot {
       }
     }
 
-    pathsHistory.addValue(npaths);
+    // pathsHistory.addValue(npaths);
   }
 
   // normalized cursor, zoom => normalized viewport min x
@@ -295,7 +295,7 @@ class GalvoPlot {
         Point p = points.get(pidx);
         if (p.isBlank) {
           float xpos = x + w * getScreenXForIndex(pidx, cursorNormalized, zoom, npoints);
-          float ypos = xplotCenterY + p.x * plotHeight/2;
+          float ypos = xplotCenterY - p.x * plotHeight/2;
           g.vertex(xpos, ypos);
         }
       }
@@ -311,7 +311,7 @@ class GalvoPlot {
           Point p = points.get(pidx);
           if (!p.isBlank) {
             float xpos = x + w * getScreenXForIndex(pidx, cursorNormalized, zoom, npoints);
-            float ypos = xplotCenterY + p.x * plotHeight/2;
+            float ypos = xplotCenterY - p.x * plotHeight/2;
             g.stroke(p.col);
             g.vertex(xpos, ypos);
           }
@@ -326,7 +326,7 @@ class GalvoPlot {
           Point p = points.get(pidx);
           if (!p.isBlank) {
             float xpos = x + w * getScreenXForIndex(pidx, cursorNormalized, zoom, npoints);
-            float ypos = xplotCenterY + p.x * plotHeight/2 - psizeColor/2;
+            float ypos = xplotCenterY - p.x * plotHeight/2 - psizeColor/2;
             g.fill(p.col);
             g.vertex(xpos, ypos);
             g.vertex(xpos+psizeColor, ypos);
@@ -349,7 +349,7 @@ class GalvoPlot {
         Point p = points.get(pidx);
         if (p.isBlank) {
           float xpos = x + w * getScreenXForIndex(pidx, cursorNormalized, zoom, npoints);
-          float ypos = yplotCenterY + p.y * plotHeight/2;
+          float ypos = yplotCenterY - p.y * plotHeight/2;
           g.vertex(xpos, ypos);
         }
       }
@@ -364,7 +364,7 @@ class GalvoPlot {
           Point p = points.get(pidx);
           if (!p.isBlank) {
             float xpos = x + w * getScreenXForIndex(pidx, cursorNormalized, zoom, npoints);
-            float ypos = yplotCenterY + p.y * plotHeight/2;
+            float ypos = yplotCenterY - p.y * plotHeight/2;
             g.stroke(p.col);
             g.vertex(xpos, ypos);
           }
@@ -380,7 +380,7 @@ class GalvoPlot {
           Point p = points.get(pidx);
           if (!p.isBlank) {
             float xpos = x + w * getScreenXForIndex(pidx, cursorNormalized, zoom, npoints);
-            float ypos = yplotCenterY + p.y * plotHeight/2 - psizeColor/2;
+            float ypos = yplotCenterY - p.y * plotHeight/2 - psizeColor/2;
             g.fill(p.col);
             g.vertex(xpos, ypos);
             g.vertex(xpos+psizeColor, ypos);
@@ -455,7 +455,8 @@ class GalvoPlot {
 
       g.fill(255);
       g.textSize(22);
-      g.text(selectedPointIndex, cx, g.height - vpad+7);
+      String idxtext = ""+selectedPointIndex;
+      g.text(idxtext, min(cx, w-textWidth(idxtext)-10), g.height - vpad+7);
     }
   }
 
