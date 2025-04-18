@@ -8,7 +8,8 @@ void main(void) {
   
   float lineThickness = 1.1 / resolution.y;
   //vec3 lineColor = vec3(0.3, 0.4, 0.6);
-  vec3 lineColor = vec3(192./255., 238./255., 1./255.) * 0.5;
+  vec3 lineColor = vec3(192./255., 248./255., 1./255.) * 0.66;
+  // vec3 lineColor = vec3(192./255., 238./255., 1./255.) * 0.5;
 
   int idx = int(uv.x / ar.x * 512.0);
   int startIdx = max(0, idx - 10);

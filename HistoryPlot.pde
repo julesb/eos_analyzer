@@ -94,33 +94,33 @@ class HistoryPlot {
   public void draw(int x, int y, int w, int h) {
     boolean clipped;
     float xpos=0, ypos=0, ylen=0;
-    int valueOffset = 120;
     int w2 = w - indicatorWidth;
+
+    float dynamicTextSize = map(h, 50, 200, 24, 32);
+    textSize(dynamicTextSize);
+    float labelWidth = textWidth("XXXXXX");
+    float valueOffset = labelWidth*1.1;
+    float textYOffset = y+dynamicTextSize * 0.9;
+
     color plotColor = color(255,255,255,128); // neon green
     color needleColor = color(192,238,1,255);
     strokeWeight(1);
     stroke(borderColor);
-    // fill(8,255);
     noFill();
     rect(x,y,w,h);
 
     fill(255,255,255,32);
-    rect(x+2,y+2, 102, 40);
-
+    rect(x+2,y+2, labelWidth, dynamicTextSize*1.1);
 
     fill(255,255,255);
-    textSize(32);
-
-    text(name, x+8, y+32);
+    text(name, x+8, textYOffset);
 
     fill(255,255,255, 240);
-
-    textSize(32);
     if (this.numberFormat == "float") {
-      text(String.format("%.2f %s", expMovingAvg, units), x+valueOffset, y+28);
+      text(String.format("%.2f %s", expMovingAvg, units), x+valueOffset, textYOffset);
     }
     else {
-      text(String.format("%d %s", (int)expMovingAvg, units), x+valueOffset, y+28);
+      text(String.format("%d %s", (int)expMovingAvg, units), x+valueOffset, textYOffset);
     }
 
     noFill();

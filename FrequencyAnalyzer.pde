@@ -24,7 +24,7 @@ class FrequencyAnalyzer {
   int sampleRate = 0x10000;
   //float[] hamming;
 
-  float zoom = 1.0;
+  float zoom = 5.0;
   float zoomVelocity = 0.0;
 
   PGraphics g;
@@ -145,8 +145,8 @@ class FrequencyAnalyzer {
       // magnitudeX[i] = fftResultX[i].abs();
       // magnitudeY[i] = fftResultY[i].abs();
       
-      smoothMagnitudeX[i] = computeExpMovingAvg(smoothMagnitudeX[i], magnitudeX[i], 5.0);
-      smoothMagnitudeY[i] = computeExpMovingAvg(smoothMagnitudeY[i], magnitudeY[i], 5.0);
+      smoothMagnitudeX[i] = computeExpMovingAvg(smoothMagnitudeX[i], magnitudeX[i], 6.0);
+      smoothMagnitudeY[i] = computeExpMovingAvg(smoothMagnitudeY[i], magnitudeY[i], 6.0);
     }
 
 
@@ -230,10 +230,14 @@ class FrequencyAnalyzer {
     g.shader(fftShader);
     fftShader.set("ffttex", fftTex);
     g.beginShape(QUADS);
+    // g.vertex(0, 0,  0, 0);
+    // g.vertex( w, 0, 1, 0);
+    // g.vertex( w,  h, 1, 1);
+    // g.vertex(0,  h,  0, 1);
     g.vertex(0, 0,  0, 0);
-    g.vertex( w, 0, ar, 0);
-    g.vertex( w,  h, ar, 1);
-    g.vertex(0,  h,  0, 1);
+    g.vertex(w, 0, ar, 0);
+    g.vertex(w, h, ar, 1);
+    g.vertex(0, h,  0, 1);
     g.endShape();
     g.endDraw();
     

@@ -47,22 +47,21 @@ class ColorAnalyzer {
     noFill();
 
     beginShape();
-    for (int i=0; i < NUM_HUE_BINS; i++) {
-      color c = hsvToRgb((float)i / NUM_HUE_BINS, 1.0, 1.0);
-      stroke(c,255);
-      vx = x + i*binW;
-      if (i > 0 && i < NUM_HUE_BINS-1) {
-        vy = y+h - (h * (huePowerBinsSmooth[i-1]
-                      + huePowerBinsSmooth[i]
-                      + huePowerBinsSmooth[i+1]) / 3.0);
+      for (int i=0; i < NUM_HUE_BINS; i++) {
+        color c = hsvToRgb((float)i / NUM_HUE_BINS, 1.0, 1.0);
+        stroke(c,255);
+        vx = x + i*binW;
+        if (i > 0 && i < NUM_HUE_BINS-1) {
+          vy = y+h - (h * (huePowerBinsSmooth[i-1]
+                        + huePowerBinsSmooth[i]
+                        + huePowerBinsSmooth[i+1]) / 3.0);
+        }
+        else {
+          vy = y + h - huePowerBinsSmooth[i]*h;
+        }
+        vertex(vx, vy);
+        // vertex(x + i*binW, max(y, y+h - huePowerBins[i]*h));
       }
-      else {
-        vy = y + h - huePowerBinsSmooth[i]*h;
-      }
-      vertex(vx, vy);
-      // vertex(x + i*binW, max(y, y+h - huePowerBins[i]*h));
-    }
-
     endShape();
 
   }
@@ -81,7 +80,6 @@ class ColorAnalyzer {
 
     int colPointCount = 0;
     huePowerBins = new float[NUM_HUE_BINS];
-    // colorMode(HSB, ) 
     for (int i=0; i < npoints; i++) {
       Point p = points.get(i);
       if (p.isBlank()) {
@@ -95,9 +93,9 @@ class ColorAnalyzer {
 
       float h = hue(col) / 255.0;
       float v = brightness(col) / 255.0;
-      // println(v);
+      float s = saturation(col) / 255.0;
       int binIdx = (int) min(h * NUM_HUE_BINS, NUM_HUE_BINS-1);
-      huePowerBins[binIdx] += v*v;
+      huePowerBins[binIdx] += v * s; //*v;
     }
 
     rgbPower[0] = (sumR / colPointCount) / 255.0;
@@ -111,6 +109,10 @@ class ColorAnalyzer {
       }
     }
   
+    if (maxPower <= 0) {
+     maxPower = 0.001;
+    }
+
     for (int i=0; i < NUM_HUE_BINS; i++) {
       // huePowerBins[i] /= colPointCount;
       huePowerBins[i] /= maxPower; // colPointCount;
